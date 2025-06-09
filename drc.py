@@ -123,6 +123,59 @@ def virarPara(dir):
                 drive_base.turn(90)
         return dir
 
+def desviaAmarelo(direcao_atual, linha, coluna):
+    if direcao_atual=="D":
+        direcao_oposta='E'
+    if direcao_atual=="E":
+        direcao_oposta='D'
+    if direcao_atual=="B":
+        direcao_oposta='C'
+    if direcao_atual=="C":
+        direcao_oposta='B'
+
+    drive_base.straight(-125)
+    if linha > 0 and direcao_atual=='E' and coluna > 1 or direcao_atual=='D' and coluna < 4:  
+            if tabuleiro[linha-1][coluna]==Color.WHITE or tabuleiro[linha-1][coluna]==Color.BLACK:
+                virarPara('C')
+                drive_base.straight(300)
+                virarPara(direcao_atual)
+                drive_base.straight(600)
+                virarPara('B')
+                drive_base.straight(300)
+                virarPara(direcao_atual)
+
+                if direcao_atual=='E':
+                    tabuleiro[linha][coluna-1] == Color.MY_YELLOW
+                    coluna = coluna-2
+                else:
+                    tabuleiro[linha][coluna+1] == Color.MY_YELLOW
+                    coluna = coluna+2
+            else: #CASO EM CIMA TENHA UM QUADRADO AMARELO 
+                print("Não sei ainda")
+    elif linha == 0 and direcao_atual=='E' and coluna > 1 or direcao_atual=='D' and coluna < 4:
+        virarPara('B')
+        frente = verificarFrente()
+        if frente != Color.MY_YELLOW:
+            drive_base.straight(150)
+        virarPara(direcao_atual)
+        frente = verificarFrente()
+        if frente != Color.MY_YELLOW:
+            drive_base.straight(150)
+        frente = verificarFrente()
+        if frente != Color.MY_YELLOW:
+            drive_base.straight(150)
+        virarPara('C')
+        drive_base.straight(300)
+        virarPara(direcao_atual)
+        if direcao_atual=='E':
+            tabuleiro[linha][coluna-1] == Color.MY_YELLOW
+            coluna = coluna-2
+        else:
+            tabuleiro[linha][coluna+1] == Color.MY_YELLOW
+            coluna = coluna+2
+    
+    return direcao_atual, linha, coluna
+            
 ########### MAIN ###########
 ########### INDO PARA O (0,0) ###########
 proxQuadrado = verificarFrente()
@@ -134,20 +187,28 @@ while proxQuadrado != Color.GRAY: ##PENSAR O QUE FAZER CASO TENHA ALGUM QUADRADO
 direcao = virarPara('D')
 tabuleiro[linha][coluna] = color_sensorE.color()
 linha, coluna = 0, 0
+cor_anterior = Color.NONE
 
 ########### ANDANDO PELO LABIRINTO ###########
 for i in range(6): #6 linhas
     for j in range(1, 6): #5 colunas já que estamos sempre em uma
         sensor = verificarFrente()
-        if sensor!= Color.GRAY:
+        if sensor == Color.MY_YELLOW:
+            direcao, linha, coluna = desviaAmarelo(direcao, linha, coluna)
+        else:
             linha, coluna = frente (linha, coluna)
             tabuleiro[linha][coluna]=color_sensorE.color()
+        cor_anterior=sensor
+
+
+    ###### MUDAR PARA LINHA DE BAIXO #######
     direcao = virarPara('B')
-    sensor = verificarFrente()
+    verificarFrente()
     linha, coluna = frente (linha, coluna)
     tabuleiro[linha][coluna]=color_sensorE.color()
     if coluna==5: #VIRA PARA O INICIO OU FINAL DO TABULEIRO
         direcao = virarPara('E')
     else:
         direcao = virarPara('D')
+
 print(tabuleiro)
