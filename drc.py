@@ -15,8 +15,8 @@ drive_base.use_gyro(True)
 color_sensorD = ColorSensor(Port.D)
 color_sensorE = ColorSensor(Port.C)
 Color.BLACK = Color(270, 27, 27)
-Color.GRAY = Color(220, 30, 50)
-Color.MY_YELLOW = Color(67, 42, 98)
+Color.GRAY = Color(235, 23, 60)
+Color.MY_YELLOW = Color(60, 42, 98)
 Color.MY_GREEN = Color(138, 49, 88)
 color_sensorE.detectable_colors((Color.BLACK, Color.WHITE, Color.GRAY, Color.RED, Color.MY_YELLOW, Color.MY_GREEN))
 color_sensorD.detectable_colors((Color.BLACK, Color.WHITE, Color.GRAY, Color.RED, Color.MY_YELLOW, Color.MY_GREEN))
@@ -188,27 +188,124 @@ direcao = virarPara('D')
 tabuleiro[linha][coluna] = color_sensorE.color()
 linha, coluna = 0, 0
 cor_anterior = Color.NONE
-
+k=6
 ########### ANDANDO PELO LABIRINTO ###########
 for i in range(6): #6 linhas
-    for j in range(1, 6): #5 colunas já que estamos sempre em uma
+    di=direcao
+    if di=="C":
+        do="B"
+    if di=="B":
+        do="C"
+    if di=="E":
+        do="D"
+    if di=="D":
+        do="E"
+    marcador=0
+    for j in range(1, k): #5 colunas já que estamos sempre em uma
         sensor = verificarFrente()
+        marcador =0
+        di=direcao
+        if di=="C":
+            do="B"
+        if di=="B":
+            do="C"
+        if di=="E":
+            do="D"
+        if di=="D":
+            do="E"
         if sensor == Color.MY_YELLOW:
-            direcao, linha, coluna = desviaAmarelo(direcao, linha, coluna)
+            marcador=0
+        
+        if sensor!= Color.GRAY:
+            if sensor== Color.MY_YELLOW:
+                drive_base.straight(-125)
+                direcao = virarPara('B')
+                sensor = verificarFrente()
+                if sensor!= Color.GRAY :
+                    linha, coluna = frente (linha, coluna)
+                    tabuleiro[linha][coluna]=color_sensorE.color()
+                    direcao = virarPara(di)
+                    sensor = verificarFrente()
+                    linha, coluna = frente (linha, coluna)
+                    tabuleiro[linha][coluna]=color_sensorE.color()
+                    sensor = verificarFrente()
+                    if sensor== Color.GRAY:
+                        direcao = virarPara(do)
+                        marcador=1
+                        
+                    else:
+                        sensor = verificarFrente()
+                        linha, coluna = frente (linha, coluna)
+                        tabuleiro[linha][coluna]=color_sensorE.color()
+                        direcao = virarPara('C')
+                        sensor = verificarFrente()
+                        linha, coluna = frente (linha, coluna)
+                        tabuleiro[linha][coluna]=color_sensorE.color()
+                        direcao = virarPara(di)
+                else:
+                    direcao = virarPara('C')
+                    sensor = verificarFrente()
+                    linha, coluna = frente (linha, coluna)
+                    tabuleiro[linha][coluna]=color_sensorE.color()
+                    direcao = virarPara(di)
+                    sensor = verificarFrente()
+                    linha, coluna = frente (linha, coluna)
+                    tabuleiro[linha][coluna]=color_sensorE.color()
+                    sensor = verificarFrente()
+                    if sensor==Color.GRAY:
+                        direcao = virarPara(do)
+                        marcador=1
+                        break
+                    else:
+                        sensor = verificarFrente()
+                        linha, coluna = frente (linha, coluna)
+                        tabuleiro[linha][coluna]=color_sensorE.color()
+                        direcao = virarPara('B')
+                        sensor = verificarFrente()
+                        linha, coluna = frente (linha, coluna)
+                        tabuleiro[linha][coluna]=color_sensorE.color()
+                        direcao = virarPara(di)
+
+            else:
+                linha, coluna = frente (linha, coluna)
+                tabuleiro[linha][coluna]=color_sensorE.color()
+
+
         else:
             linha, coluna = frente (linha, coluna)
             tabuleiro[linha][coluna]=color_sensorE.color()
         cor_anterior=sensor
-
-
+        
     ###### MUDAR PARA LINHA DE BAIXO #######
-    direcao = virarPara('B')
-    verificarFrente()
-    linha, coluna = frente (linha, coluna)
-    tabuleiro[linha][coluna]=color_sensorE.color()
-    if coluna==5: #VIRA PARA O INICIO OU FINAL DO TABULEIRO
+    if marcador==0:
+        direcao = virarPara('B')
+        sensor = verificarFrente()
+        if sensor==Color.MY_YELLOW:
+            drive_base.straight(-125)
+            direcao=virarPara(do)
+            verificarFrente()
+            linha, coluna = frente (linha, coluna)
+            tabuleiro[linha][coluna]=color_sensorE.color()
+            direcao = virarPara('B')
+            verificarFrente()
+            linha, coluna = frente (linha, coluna)
+            tabuleiro[linha][coluna]=color_sensorE.color()
+        else:
+            linha, coluna = frente (linha, coluna)
+            tabuleiro[linha][coluna]=color_sensorE.color()
+    k=6
+    print(coluna)
+    if coluna>=4: #VIRA PARA O INICIO OU FINAL DO TABULEIRO
         direcao = virarPara('E')
+        if coluna==4:
+            k=5
+        else:
+            k=6
     else:
+        if coluna ==1:
+            k=5
+        else:
+            k=6
         direcao = virarPara('D')
 
 print(tabuleiro)
