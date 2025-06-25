@@ -12,12 +12,17 @@ tabuleiro = [[Color.NONE for _ in range(m)] for _ in range(n)]
 linha, coluna = 0, 0
 direcao = 'D'
 ANGULOS_DIRECAO = {'C': 0, 'D': 90, 'B': 180, 'E': 270}
+vermelhos=[]
+verde=[]
+amarelos=[]
+azul=[]
+gray=[]
 
 ########### CORES ###########
 Color.MY_GRAY = Color(207, 27, 96)
 Color.MY_BLACK= Color(270, 27, 27)
 Color.MY_BLUE = Color(219, 85, 48)
-Color.MY_YELLOW = Color(65, 42, 98)
+Color.MY_YELLOW = Color(72, 56, 98)
 Color.MY_RED = Color(352, 84, 87)
 Color.MY_GREEN = Color(138, 49, 88)
 MINHAS_CORES = (Color.WHITE, Color.MY_BLACK, Color.MY_BLUE, Color.MY_GRAY, Color.MY_YELLOW, Color.MY_RED, Color.MY_GREEN)
@@ -27,7 +32,7 @@ CORES_DE_PRIORIDADE = (Color.MY_YELLOW, Color.MY_BLUE, Color.MY_RED, Color.MY_GR
 motorE = Motor(Port.E, Direction.COUNTERCLOCKWISE)
 motorD = Motor(Port.F, Direction.CLOCKWISE)
 motorG = Motor(Port.B, Direction.COUNTERCLOCKWISE) #GARRA
-drive_base = DriveBase(motorE, motorD, 56, 137)
+drive_base = DriveBase(motorE, motorD, 56, 120)
 drive_base.use_gyro(True)
 drive_base.settings(straight_speed=100)
 
@@ -37,7 +42,7 @@ color_sensorE = ColorSensor(Port.C)
 color_sensorL = ColorSensor(Port.A)
 color_sensorE.detectable_colors(MINHAS_CORES)
 color_sensorD.detectable_colors(MINHAS_CORES)
-color_sensorL.detectable_colors((Color.RED, Color.GREEN))
+color_sensorL.detectable_colors(MINHAS_CORES)
 
 ########### FUNCOES ###########
 ########### IMPRIME O TABULEIRO FORMATADO ###########
@@ -55,15 +60,18 @@ def imprimeTabuleiro():
 def ler_cor():
     cor_e = color_sensorE.color()
     cor_d = color_sensorD.color()
-   
-    if cor_e == cor_d:
+    cor_l = color_sensorL.color()
+    if cor_e == cor_d and cor_e==cor_l and cor_d==cor_l:
         return cor_e
     else: 
-        drive_base.straight(5)
-        cor_e = color_sensorE.color()
-        cor_d = color_sensorD.color()
+        #drive_base.straight(5)
+        #cor_e = color_sensorE.color()
+        #cor_d = color_sensorD.color()
+        #cor_l = color_sensorL.color()
 
         for cor_prioritaria in CORES_DE_PRIORIDADE:
+            if cor_l == cor_prioritaria:
+                return cor_l
             if cor_e == cor_prioritaria:
                 return cor_e
             if cor_d == cor_prioritaria:
@@ -85,7 +93,7 @@ def virarPara(direcao_destino):
     direcao=direcao_destino
     #print(f"Virando para: {direcao}")
     drive_base.turn(angulo_giro, then=Stop.HOLD, wait=True)
-    wait(500) # Pequena pausa para estabilizar   
+    wait(2000) # Pequena pausa para estabilizar   
 
 ########### VIRA O ROBO USANDO VALORES ABSOLUTOS ###########
 def viraAngulo(angulo_relativo):
@@ -109,7 +117,7 @@ def andarBorda():
 
 ########### ALINHA O ROBO PARALELO A LINHA PRETA ###########
 def alinharPreto():
-    while ler_cor()!= Color.MY_BLACK:
+    while ler_cor()!= Color.MY_BLACK and ler_cor()!=Color.MY_BLUE:
             drive_base.drive(100, 0)
     drive_base.stop()
 
@@ -239,6 +247,87 @@ def encontrar_desconhecido_mais_proximo(mapa_de_cores, posicao_atual):
 
     return caminho_mais_curto
 
+########### RETORNA O CAMINHO PARA O DESCONHECIDO MAIS PROXIMO DE MIM ###########
+def encontrar_vermelho_distante(vermelhos, posicao_atual):
+    global tabuleiro
+    # Se não há mais células desconhecidas, retorna None
+    if not vermelhos:
+        return None
+
+    melhor_alvo = None
+    caminho_mais_longo = None
+
+    # 2. Testa cada célula desconhecida para ver qual tem o caminho mais curto
+    for alvo in vermelhos:
+        # Usa a função BFS que já temos para encontrar o caminho
+        caminho_candidato = encontrar_caminho_bfs(tabuleiro, posicao_atual, alvo)
+
+        # Se um caminho válido foi encontrado para este alvo
+        if caminho_candidato:
+            # Se é o primeiro caminho válido que encontramos, ou se ele é mais curto que o melhor anterior
+            if caminho_mais_longo is None or len(caminho_candidato) > len(caminho_mais_longo):
+                caminho_mais_longo = caminho_candidato
+                melhor_alvo = alvo
+
+    return caminho_mais_longo
+
+########### MAPEIA O INTERIOR DO TABULEIRO ###########
+def explorar_interior(caminho_a_seguir):
+    global linha, coluna, direcao, tabuleiro
+
+    # O loop vai até o penúltimo item, pois sempre olhamos para o próximo
+    for i in range(len(caminho_a_seguir) - 1):
+        pos_atual = caminho_a_seguir[i]
+        pos_proxima = caminho_a_seguir[i+1]
+        # Garante que o estado lógico do robô corresponde ao início do passo
+        linha, coluna = pos_atual
+        # 1. Orienta o robô na direção do próximo passo
+        direcao_necessaria = direcao
+        (alvo_linha, alvo_coluna) = pos_proxima
+        if alvo_linha > linha: direcao_necessaria = 'B'
+        elif alvo_linha < linha: direcao_necessaria = 'C'
+        elif alvo_coluna > coluna: direcao_necessaria = 'E'
+        elif alvo_coluna < coluna: direcao_necessaria = 'D'
+        virarPara(direcao_necessaria)
+
+        drive_base.reset(0,0)
+        while drive_base.distance()<=300:
+            drive_base.straight(20, then=Stop.NONE)
+            if ler_cor()==Color.MY_YELLOW:
+                drive_base.stop()
+                drive_base.straight(-drive_base.distance())
+                tabuleiro[alvo_linha][alvo_coluna]=Color.MY_YELLOW
+                return
+            elif ler_cor()==Color.MY_RED or ler_cor()==Color.MY_GREEN:
+                tabuleiro[alvo_linha][alvo_coluna]=ler_cor()
+                break
+        drive_base.straight(300-drive_base.distance())
+        linha, coluna = pos_proxima
+        if tabuleiro[linha][coluna]==Color.NONE: tabuleiro[linha][coluna]=Color.WHITE
+    return
+
+########### ANALISA O TABULEIRO PREENCHIDO E SALVA OS PONTOS NOTAVEIS ###########
+def pontos_notaveis():
+    global vermelhos, amarelos, verde, azul, gray
+    for i in range(n):
+        for j in range(m):
+            if tabuleiro[i][j]==Color.MY_YELLOW:
+                amarelos.append((i,j))
+            if tabuleiro[i][j]==Color.MY_GREEN:
+                verde.append((i,j))
+            if tabuleiro[i][j]==Color.MY_BLUE:
+                if len(azul)==0:
+                    azul.append((i,j))
+            if tabuleiro[i][j]==Color.MY_GRAY:
+                gray.append((i,j))
+            if tabuleiro[i][j]==Color.MY_RED:
+                vermelhos.append((i,j))
+    #print(vermelhos)
+    #print(amarelos)
+    #print(verde)
+    #print(azul)
+    #print(gray)
+
 ########### MAIN ###########
 ########### SAINDO DO CINZA ###########
 while ler_cor()==Color.MY_GRAY:
@@ -246,7 +335,7 @@ while ler_cor()==Color.MY_GRAY:
 hub.speaker.beep(500, 100)
 
 ########### ANDANDO PELA BORDA ###########
-for lado in range(4):
+for lado in range(5):
     quadrados = andarBorda()
     ########### NA PRIMEIRA LINHA SALVAMOS A POSICAO DO CINZA ###########
     ########### ROBO CHEGOU EM 0,0 NO CANTO SUPERIOR DIREITO  ###########
@@ -279,6 +368,7 @@ for lado in range(4):
         elif direcao == 'E':
             tabuleiro[linha][coluna+1] = Color.MY_BLUE
             tabuleiro[linha][coluna+2] = Color.MY_BLUE
+        
         ########### COMPLETA A BORDA DE BRANCOS ###########
         fechar_borda()
         break
@@ -286,5 +376,17 @@ for lado in range(4):
         alinharPreto()
         viraAngulo(90)   
 
+########### EXPLORANDO O INTERIOR ###########
+ponto_entrada = (linha, coluna)
+desconhecido = encontrar_desconhecido_mais_proximo(tabuleiro, ponto_entrada)
+
+while desconhecido:
+    explorar_interior(desconhecido)
+    desconhecido = encontrar_desconhecido_mais_proximo(tabuleiro, (linha, coluna))
+pontos_notaveis()
+
+########## VOLTA PARA O PONTO DE ENTRADA ############
+seguir_caminho(encontrar_caminho_bfs(tabuleiro, (linha, coluna), ponto_entrada))
+alinharPreto()
+viraAngulo(180)
 imprimeTabuleiro()
-print(f"ESTOU EM: {linha}, {coluna}")
