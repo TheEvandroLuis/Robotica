@@ -40,6 +40,7 @@ color_sensorD.detectable_colors(MINHAS_CORES)
 color_sensorL.detectable_colors((Color.RED, Color.GREEN))
 
 ########### FUNCOES ###########
+########### IMPRIME O TABULEIRO FORMATADO ###########
 def imprimeTabuleiro():
     global tabuleiro
 
@@ -50,6 +51,7 @@ def imprimeTabuleiro():
         print()
         print("-----------------------------------------------------------------------------------------------------------------")
 
+########### RETORNA A COR EMBAIXO DO ROBÔ (ADICIONAR SENSOR DO MEIO) ###########
 def ler_cor():
     cor_e = color_sensorE.color()
     cor_d = color_sensorD.color()
@@ -67,6 +69,7 @@ def ler_cor():
             if cor_d == cor_prioritaria:
                 return cor_d
 
+########### VIRA O ROBO USANDO AS DIRECOES DO TABULEIRO ###########
 def virarPara(direcao_destino):
     global direcao
     if direcao == direcao_destino:
@@ -83,7 +86,8 @@ def virarPara(direcao_destino):
     #print(f"Virando para: {direcao}")
     drive_base.turn(angulo_giro, then=Stop.HOLD, wait=True)
     wait(500) # Pequena pausa para estabilizar   
-    
+
+########### VIRA O ROBO USANDO VALORES ABSOLUTOS ###########
 def viraAngulo(angulo_relativo):
     global direcao
     angulo_atual = ANGULOS_DIRECAO[direcao]
@@ -96,30 +100,14 @@ def viraAngulo(angulo_relativo):
             break
     virarPara(nova_direcao_letra)
 
-def verificarFrente():
-    drive_base.straight(200)
-    return ler_cor()
-   
-def frente():
-    global linha, coluna, direcao
-    if direcao == 'D':
-        coluna+=1
-    elif direcao == 'E':
-        coluna-=1
-    elif direcao == 'B':
-        linha-=1
-    elif direcao == 'C':
-        linha+=1
-
-    drive_base.straight(100)
-    print(f"Estou em {linha}, {coluna}")
-
+########### ANDA PELA BORDA ATÉ ENCONTRAR O AZUL OU PRETO RETORNA QTD DE QUADRADOS ###########
 def andarBorda():
     drive_base.reset(0,0)
     while ler_cor()!=Color.MY_BLACK and ler_cor()!=Color.MY_BLUE:
         drive_base.straight(20, then=Stop.NONE)
-    return drive_base.distance()
+    return drive_base.distance()//300
 
+########### ALINHA O ROBO PARALELO A LINHA PRETA ###########
 def alinharPreto():
     while ler_cor()!= Color.MY_BLACK:
             drive_base.drive(100, 0)
@@ -135,34 +123,7 @@ def alinharPreto():
     wait(100)
     drive_base.straight(-50)
 
-def desviaAmarelo():
-    global direcao, linha, coluna
-
-    coluna_obstaculo = coluna_atual
-    linha_obstaculo = linha_atual
-
-    #tabuleiro[linha_obstaculo][coluna_obstaculo] = Color.MY_YELLOW
-
-    # 2. Define as direções relativas para o desvio
-    direcao_inicial = direcao_atual
-
-    # 3. Executa a manobra de contorno
-    # Passo A: Sai da linha original
-    direcao_atual = virarPara(direcao_atual, 'C')
-    drive_base.straight(300)
-
-    # Passo B: Anda paralelamente à linha original
-    direcao_atual = virarPara(direcao_atual, direcao_inicial)
-    drive_base.straight(600)
-
-    # Passo C: Retorna para a linha original
-    direcao_atual = virarPara(direcao_atual, 'B')
-    drive_base.straight(300)
-    # Passo D: Re-alinha com a direção original do percurso
-    direcao_atual = virarPara(direcao_atual, direcao_inicial)
-    
-    return direcao_atual, linha_atual, coluna_atual
-
+########### COMPLETA UMA DAS LATERAIS COM BRANCO (TALVEZ REDUNDANTE) ###########
 def preencher_borda(linha_inicial, coluna_inicial, direcao_percurso, quadrados_percorridos):
     global tabuleiro # Acessa o tabuleiro global para modificá-lo
     r, c = linha_inicial, coluna_inicial
@@ -178,6 +139,7 @@ def preencher_borda(linha_inicial, coluna_inicial, direcao_percurso, quadrados_p
         elif direcao_percurso == 'D': c += 1
         elif direcao_percurso == 'E': c -= 1
 
+########### FECHA TODOS OS QUADRADOS DA BORDA QUE NÃO SEJAM AZUL/CINZA COM BRANCO ###########
 def fechar_borda():
     global tabuleiro
     global n,m
@@ -190,6 +152,94 @@ def fechar_borda():
         if tabuleiro[0][i]==Color.NONE: tabuleiro[0][i]=Color.WHITE
         if tabuleiro[n-1][i]==Color.NONE: tabuleiro[n-1][i]=Color.WHITE
 
+########### RETORNA UMA LISTA COM O CAMINHO ENTRE DOIS PONTOS ###########
+def encontrar_caminho_bfs(mapa_de_cores, inicio, fim):
+    # Lista de quadrados que o robô não deve entrar
+    OBSTACULOS = (Color.MY_YELLOW, Color.MY_BLUE)
+    # Fila que armazena os caminhos a serem explorados
+    fila = [[inicio]]
+    # Conjunto para guardar as posições já visitadas
+    visitados = {inicio}
+    while fila:
+        caminho_atual = fila.pop(0) 
+        (r, c) = caminho_atual[-1]
+        if (r, c) == fim: return caminho_atual
+        # Lógica de vizinhos
+        vizinhos = [
+            (r - 1, c),  # Cima
+            (r + 1, c),  # Baixo
+            (r, c - 1),  # Direita
+            (r, c + 1)   # Esquerda
+        ]
+        for prox_pos in vizinhos:
+            prox_r, prox_c = prox_pos   
+            # Verifica se o vizinho é um caminho válido
+            if (0 <= prox_r < len(mapa_de_cores) and 0 <= prox_c < len(mapa_de_cores[0]) and mapa_de_cores[prox_r][prox_c] not in OBSTACULOS and prox_pos not in visitados):
+                visitados.add(prox_pos)
+                novo_caminho = list(caminho_atual)
+                novo_caminho.append(prox_pos)
+                fila.append(novo_caminho) 
+    return None
+
+########### FAZ O ROBO SEGUIR UM CAMINHO DETERMINADO ###########
+def seguir_caminho(caminho_a_seguir):
+    global linha, coluna, direcao
+
+    for i in range(len(caminho_a_seguir) - 1):
+        pos_atual = caminho_a_seguir[i]
+        pos_proxima = caminho_a_seguir[i+1]
+        
+        (alvo_linha, alvo_coluna) = pos_proxima
+        (atual_linha, atual_coluna) = pos_atual
+
+        ######## VIRA O ROBO PARA A DIRECAO NECESSARIA ##########
+        if alvo_linha > atual_linha:
+            direcao_necessaria = 'B'  # Baixo
+        elif alvo_linha < atual_linha:
+            direcao_necessaria = 'C'  # Cima
+        elif alvo_coluna > atual_coluna:
+            direcao_necessaria = 'E'  # Aumentar a coluna = ir para Esquerda
+        elif alvo_coluna < atual_coluna:
+            direcao_necessaria = 'D'  # Diminuir a coluna = ir para Direita
+        virarPara(direcao_necessaria)
+        
+        ########### FAZ O ROBO AVANCAR UMA CASA ###########
+        drive_base.straight(300)
+
+        ########### ATUALIZA A POSICAO DO ROBO ###########
+        linha, coluna = pos_proxima
+
+########### RETORNA O CAMINHO PARA O DESCONHECIDO MAIS PROXIMO DE MIM ###########
+def encontrar_desconhecido_mais_proximo(mapa_de_cores, posicao_atual):
+    desconhecidos = []
+    # 1. Cria uma lista de todos os alvos possíveis (células desconhecidas)
+    for r, linha_mapa in enumerate(mapa_de_cores):
+        for c, celula in enumerate(linha_mapa):
+            if celula == Color.NONE:
+                desconhecidos.append((r, c))
+
+    # Se não há mais células desconhecidas, retorna None
+    if not desconhecidos:
+        return None
+
+    melhor_alvo = None
+    caminho_mais_curto = None
+
+    # 2. Testa cada célula desconhecida para ver qual tem o caminho mais curto
+    for alvo in desconhecidos:
+        # Usa a função BFS que já temos para encontrar o caminho
+        caminho_candidato = encontrar_caminho_bfs(mapa_de_cores, posicao_atual, alvo)
+
+        # Se um caminho válido foi encontrado para este alvo
+        if caminho_candidato:
+            # Se é o primeiro caminho válido que encontramos, ou se ele é mais curto que o melhor anterior
+            if caminho_mais_curto is None or len(caminho_candidato) < len(caminho_mais_curto):
+                caminho_mais_curto = caminho_candidato
+                melhor_alvo = alvo
+
+    return caminho_mais_curto
+
+########### MAIN ###########
 ########### SAINDO DO CINZA ###########
 while ler_cor()==Color.MY_GRAY:
     drive_base.straight(20, then=Stop.NONE)
@@ -197,24 +247,26 @@ hub.speaker.beep(500, 100)
 
 ########### ANDANDO PELA BORDA ###########
 for lado in range(4):
-    distancia = andarBorda()
-    quadrados = distancia // 300
-
+    quadrados = andarBorda()
+    ########### NA PRIMEIRA LINHA SALVAMOS A POSICAO DO CINZA ###########
+    ########### ROBO CHEGOU EM 0,0 NO CANTO SUPERIOR DIREITO  ###########
     if lado==0:
         tabuleiro[0][quadrados] = Color.MY_GRAY
+    ########### ATUALIZA AS POSICOES DE LINHA E COLUNA ###########
     else:
         if direcao == 'C': linha -= quadrados
         elif direcao == 'B': linha += quadrados
         elif direcao == 'D': coluna -= quadrados
         elif direcao == 'E': coluna +=quadrados    
-    
+    ########### COMPLETA OS QUADRADOS DAQUELA LINHA COM BRACO ###########
+    ########### TALVEZ POSSA EXCLUIR ESSA FUNÇÃO PQ ESTA REDUNDANTE ###########
     preencher_borda(linha, coluna, direcao, quadrados)
     hub.speaker.beep(400, 100)
-    
+    ########### CASO ENCONTRE O AZUL ENCERRA A BUSCA PELA BORDA ###########
     if ler_cor() == Color.MY_BLUE:
         hub.speaker.beep(300, 100)
         drive_base.straight(-100)
-        
+        ########### SALVA A POSICAO DO AZUL ###########
         if direcao == 'C': 
             tabuleiro[linha-1][coluna] = Color.MY_BLUE
             tabuleiro[linha-2][coluna] = Color.MY_BLUE
@@ -227,14 +279,12 @@ for lado in range(4):
         elif direcao == 'E':
             tabuleiro[linha][coluna+1] = Color.MY_BLUE
             tabuleiro[linha][coluna+2] = Color.MY_BLUE
-
+        ########### COMPLETA A BORDA DE BRANCOS ###########
         fechar_borda()
         break
-
     else:
         alinharPreto()
         viraAngulo(90)   
 
 imprimeTabuleiro()
-
 print(f"ESTOU EM: {linha}, {coluna}")
