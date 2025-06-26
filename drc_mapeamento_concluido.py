@@ -3,7 +3,7 @@ from pybricks.pupdevices import Motor, ColorSensor, UltrasonicSensor, ForceSenso
 from pybricks.parameters import Axis, Button, Color, Direction, Port, Side, Stop
 from pybricks.robotics import DriveBase
 from pybricks.tools import wait, StopWatch
-hub = PrimeHub(top_side=Axis.Z, front_side=-Axis.X)
+hub = PrimeHub(top_side=Axis.Z, front_side=-Axis.X, broadcast_channel=125)
 
 ########### VARIAVEIS ###########
 n = 5 #LINHAS (QUANTO O ROBO DESCE)
@@ -19,22 +19,22 @@ azul=[]
 gray=[]
 
 ########### CORES ###########
-Color.MY_GRAY = Color(207, 27, 96)
-Color.MY_BLACK= Color(270, 27, 27)
-Color.MY_BLUE = Color(219, 85, 48)
-Color.MY_YELLOW = Color(72, 56, 98)
-Color.MY_RED = Color(352, 84, 87)
-Color.MY_GREEN = Color(138, 49, 88)
+Color.MY_GRAY = Color(196, 34, 98)
+Color.MY_BLACK= Color(195, 31, 20)
+Color.MY_BLUE = Color(218, 93, 75)
+Color.MY_YELLOW = Color(73, 55, 98)
+Color.MY_RED = Color(354, 89, 100)
+Color.MY_GREEN = Color(143, 76, 92)
 MINHAS_CORES = (Color.WHITE, Color.MY_BLACK, Color.MY_BLUE, Color.MY_GRAY, Color.MY_YELLOW, Color.MY_RED, Color.MY_GREEN)
-CORES_DE_PRIORIDADE = (Color.MY_YELLOW, Color.MY_BLUE, Color.MY_RED, Color.MY_GREEN)
+CORES_DE_PRIORIDADE = (Color.MY_YELLOW, Color.MY_BLUE, Color.MY_GREEN, Color.MY_RED)
 
 ########### MOTORES ###########
 motorE = Motor(Port.E, Direction.COUNTERCLOCKWISE)
 motorD = Motor(Port.F, Direction.CLOCKWISE)
 motorG = Motor(Port.B, Direction.COUNTERCLOCKWISE) #GARRA
 drive_base = DriveBase(motorE, motorD, 56, 120)
+drive_base.settings(straight_speed=130, turn_rate=50)
 drive_base.use_gyro(True)
-drive_base.settings(straight_speed=100)
 
 ########### SENSORES ###########
 color_sensorD = ColorSensor(Port.D)
@@ -45,6 +45,16 @@ color_sensorD.detectable_colors(MINHAS_CORES)
 color_sensorL.detectable_colors(MINHAS_CORES)
 
 ########### FUNCOES ###########
+########### FECHA A GARRA COM O BLOCO ###########
+def fechar_garra():
+    motorG.run_target(200, 200)
+    wait(500)
+
+########### ABRE A GARRA E SOLTA O BLOCO ###########
+def abrir_garra():
+    motorG.run_target(200, 40)
+    wait(500)
+
 ########### IMPRIME O TABULEIRO FORMATADO ###########
 def imprimeTabuleiro():
     global tabuleiro
@@ -61,21 +71,29 @@ def ler_cor():
     cor_e = color_sensorE.color()
     cor_d = color_sensorD.color()
     cor_l = color_sensorL.color()
-    if cor_e == cor_d and cor_e==cor_l and cor_d==cor_l:
-        return cor_e
-    else: 
-        #drive_base.straight(5)
-        #cor_e = color_sensorE.color()
-        #cor_d = color_sensorD.color()
-        #cor_l = color_sensorL.color()
+    cor_lida = Color.NONE
 
+    if cor_e == cor_d and cor_e==cor_l and cor_d==cor_l:
+        cor_lida = cor_e
+    else: 
         for cor_prioritaria in CORES_DE_PRIORIDADE:
             if cor_l == cor_prioritaria:
-                return cor_l
+                cor_lida = cor_l
             if cor_e == cor_prioritaria:
-                return cor_e
+                cor_lida = cor_e
             if cor_d == cor_prioritaria:
-                return cor_d
+                cor_lida = cor_d
+
+    if cor_lida == Color.MY_BLUE: hub.ble.broadcast(1)
+    elif cor_lida == Color.MY_YELLOW: hub.ble.broadcast(2)
+    elif cor_lida == Color.MY_RED: hub.ble.broadcast(3)
+    elif cor_lida == Color.MY_GREEN: hub.ble.broadcast(4)
+    elif cor_lida == Color.WHITE: hub.ble.broadcast(5)
+    elif cor_lida == Color.MY_BLACK: hub.ble.broadcast(6)
+    elif cor_lida == Color.MY_GRAY: hub.ble.broadcast(7)
+    else: hub.ble.broadcast(-1)
+
+    return cor_lida
 
 ########### VIRA O ROBO USANDO AS DIRECOES DO TABULEIRO ###########
 def virarPara(direcao_destino):
@@ -93,7 +111,7 @@ def virarPara(direcao_destino):
     direcao=direcao_destino
     #print(f"Virando para: {direcao}")
     drive_base.turn(angulo_giro, then=Stop.HOLD, wait=True)
-    wait(2000) # Pequena pausa para estabilizar   
+    wait(1000) # Pequena pausa para estabilizar   
 
 ########### VIRA O ROBO USANDO VALORES ABSOLUTOS ###########
 def viraAngulo(angulo_relativo):
@@ -112,7 +130,7 @@ def viraAngulo(angulo_relativo):
 def andarBorda():
     drive_base.reset(0,0)
     while ler_cor()!=Color.MY_BLACK and ler_cor()!=Color.MY_BLUE:
-        drive_base.straight(20, then=Stop.NONE)
+        drive_base.straight(10, then=Stop.NONE)
     return drive_base.distance()//300
 
 ########### ALINHA O ROBO PARALELO A LINHA PRETA ###########
@@ -121,15 +139,15 @@ def alinharPreto():
             drive_base.drive(100, 0)
     drive_base.stop()
 
-    while color_sensorE.reflection()<50:
-        motorE.run(-30)
+    while color_sensorE.reflection()<60:
+        motorE.run(-50)
     motorE.stop()
 
-    while color_sensorD.reflection()<50:
-        motorD.run(-30)
+    while color_sensorD.reflection()<60:
+        motorD.run(-50)
     motorD.stop()
     wait(100)
-    drive_base.straight(-50)
+    drive_base.straight(-30)
 
 ########### COMPLETA UMA DAS LATERAIS COM BRANCO (TALVEZ REDUNDANTE) ###########
 def preencher_borda(linha_inicial, coluna_inicial, direcao_percurso, quadrados_percorridos):
@@ -247,7 +265,7 @@ def encontrar_desconhecido_mais_proximo(mapa_de_cores, posicao_atual):
 
     return caminho_mais_curto
 
-########### RETORNA O CAMINHO PARA O DESCONHECIDO MAIS PROXIMO DE MIM ###########
+########### RETORNA O CAMINHO PARA O VERMELHO MAIS DISTANTE DE MIM ###########
 def encontrar_vermelho_distante(vermelhos, posicao_atual):
     global tabuleiro
     # Se não há mais células desconhecidas, retorna None
@@ -292,16 +310,20 @@ def explorar_interior(caminho_a_seguir):
 
         drive_base.reset(0,0)
         while drive_base.distance()<=300:
-            drive_base.straight(20, then=Stop.NONE)
+            drive_base.straight(10, then=Stop.NONE)
             if ler_cor()==Color.MY_YELLOW:
                 drive_base.stop()
                 drive_base.straight(-drive_base.distance())
                 tabuleiro[alvo_linha][alvo_coluna]=Color.MY_YELLOW
+                viraAngulo(90)
+                drive_base.straight(50)
                 return
-            elif ler_cor()==Color.MY_RED or ler_cor()==Color.MY_GREEN:
+            elif (ler_cor()==Color.MY_RED or ler_cor()==Color.MY_GREEN) and drive_base.distance()>99:
+                drive_base.stop()
+                wait(100)
                 tabuleiro[alvo_linha][alvo_coluna]=ler_cor()
+                drive_base.straight(150)
                 break
-        drive_base.straight(300-drive_base.distance())
         linha, coluna = pos_proxima
         if tabuleiro[linha][coluna]==Color.NONE: tabuleiro[linha][coluna]=Color.WHITE
     return
@@ -310,14 +332,13 @@ def explorar_interior(caminho_a_seguir):
 def pontos_notaveis():
     global vermelhos, amarelos, verde, azul, gray
     for i in range(n):
-        for j in range(m):
+        for j in range(m-1,-1,-1):
             if tabuleiro[i][j]==Color.MY_YELLOW:
                 amarelos.append((i,j))
             if tabuleiro[i][j]==Color.MY_GREEN:
                 verde.append((i,j))
             if tabuleiro[i][j]==Color.MY_BLUE:
-                if len(azul)==0:
-                    azul.append((i,j))
+                azul.append((i,j))
             if tabuleiro[i][j]==Color.MY_GRAY:
                 gray.append((i,j))
             if tabuleiro[i][j]==Color.MY_RED:
@@ -328,7 +349,101 @@ def pontos_notaveis():
     #print(azul)
     #print(gray)
 
+########### PEGA O BLOCO VERMELHO N E VOLTA PARA PONTO DE ENTRADA  ###########
+def pegar_bloco_vermelho(numero):
+    while ler_cor()!=Color.MY_BLUE:
+        drive_base.straight(10, then=Stop.NONE)
+    drive_base.straight(55)
+    viraAngulo(90)
+    while ler_cor()==Color.MY_BLUE:
+        drive_base.straight(10, then=Stop.NONE)
+    hub.speaker.beep(500, 100)
+    drive_base.straight(-30)
+    viraAngulo(-90)
+    drive_base.straight(-70)
+    #alinharPreto()
+    abrir_garra()
+    if numero==1:
+        drive_base.straight(160)
+        fechar_garra()
+        drive_base.straight(-210)
+    elif numero==2:
+        drive_base.straight(320)
+        fechar_garra()
+        drive_base.straight(-370)
+    else:
+        drive_base.straight(480)
+        fechar_garra()
+        drive_base.straight(-530)
+    
+    viraAngulo(90)
+    drive_base.straight(-50)
+
+########### PEGA O BLOCO VERDE E PINTA AZUL DE BRANCO ###########
+def pegar_bloco_verde():
+    global tabuleiro, linha, coluna, direcao
+    while ler_cor()!=Color.MY_BLUE:
+        drive_base.straight(10, then=Stop.NONE)
+    drive_base.straight(50)
+    viraAngulo(-90)
+    while ler_cor()!=Color.MY_BLACK:
+        drive_base.straight(10, then=Stop.NONE)
+    viraAngulo(90)
+    
+    abrir_garra()
+    drive_base.straight(320)
+    fechar_garra()
+    drive_base.straight(-400)
+    '''
+    if direcao == 'C': linha = azul[1][0]
+    elif direcao == 'B': linha = azul[0][0]
+    elif direcao == 'D': coluna = azul[0][1]
+    elif direcao == 'E': coluna = azul[1][1]  
+    '''
+    tabuleiro[azul[0][0]][azul[0][1]]=Color.WHITE
+    tabuleiro[azul[1][0]][azul[1][1]]=Color.WHITE
+
+########### ENTREGA O BLOCO SOBRE O CIRCULO ###########
+def entregar():
+    global tabuleiro, linha, coluna
+    ############ VOLTA ATÉ VER A COR ##########
+    while ler_cor()!= Color.MY_RED and ler_cor()!=Color.MY_GREEN:
+            drive_base.drive(-100, 0)
+    drive_base.stop()
+    #drive_base.straight(-65)
+
+    drive_base.reset(0,0)
+    ####### CASO O SENSOR DA ESQUERDA ESTEJA FORA ##########
+    while color_sensorE.color()!=Color.MY_RED and color_sensorE.color()!=Color.MY_GREEN:
+        motorD.run(-100)
+    motorD.stop()
+
+    ####### CASO O SENSOR DA DIREITA ESTEJA FORA ##########
+    while color_sensorD.color()!=Color.MY_RED and color_sensorD.color()!=Color.MY_GREEN:
+        motorE.run(-100)
+    motorE.stop()
+    wait(100)
+
+    angulo_correcao=drive_base.angle()
+    ########### VAI PARA O COMEÇO DO CIRCULO PARA ENTREGA CORRETA #########
+    while ler_cor()!=Color.WHITE:
+        drive_base.drive(-100, 0)
+    drive_base.stop()
+    drive_base.straight(20)
+
+    ############## SOLTA O BLOCO #######
+    abrir_garra()
+    tabuleiro[linha][coluna]=Color.MY_YELLOW
+    drive_base.straight(-75)
+    motorG.run_target(200, 250)
+    drive_base.reset(0,0)
+    drive_base.turn(-angulo_correcao)
+    drive_base.straight(-100)
+
 ########### MAIN ###########
+########### SOBE A GARRA PARA ANDAR ###########
+motorG.run_target(200, 250)
+
 ########### SAINDO DO CINZA ###########
 while ler_cor()==Color.MY_GRAY:
     drive_base.straight(20, then=Stop.NONE)
@@ -379,7 +494,6 @@ for lado in range(5):
 ########### EXPLORANDO O INTERIOR ###########
 ponto_entrada = (linha, coluna)
 desconhecido = encontrar_desconhecido_mais_proximo(tabuleiro, ponto_entrada)
-
 while desconhecido:
     explorar_interior(desconhecido)
     desconhecido = encontrar_desconhecido_mais_proximo(tabuleiro, (linha, coluna))
@@ -388,5 +502,37 @@ pontos_notaveis()
 ########## VOLTA PARA O PONTO DE ENTRADA ############
 seguir_caminho(encontrar_caminho_bfs(tabuleiro, (linha, coluna), ponto_entrada))
 alinharPreto()
-viraAngulo(180)
+viraAngulo(90)
+
+imprimeTabuleiro()
+drive_base.settings(straight_speed=200, turn_rate=50)
+
+########## COLETAR E ENTREGAR OS BLOCOS VERMELHO ############
+for i in range(3):
+    pegar_bloco_vermelho(i+1)
+    caminho= encontrar_vermelho_distante(vermelhos, ponto_entrada)
+    seguir_caminho(caminho)
+    entregar()
+    ######### INVERTER O CAMINHO E RETIRAR A COORDENADA OCUPADA #######
+    caminho = caminho[::-1]
+    caminho.pop(0)
+    ######### ATUALIZAR A POSICAO DO ROBO PARA A CASA ANTERIOR ##########
+    linha, coluna = caminho[0]
+    ######### VOLTAR AO PONTO DE ENTRADA ###################
+    seguir_caminho(caminho)
+    alinharPreto()
+    viraAngulo(90)
+
+########## COLETAR E ENTREGAR BLOCO VERDE ############
+pegar_bloco_verde()
+caminho= encontrar_caminho_bfs(tabuleiro, ponto_entrada, verde[0])
+seguir_caminho(caminho)
+entregar()
+
+######### ATUALIZAR A POSICAO DO ROBO PARA A CASA ANTERIOR ##########
+linha, coluna = caminho[-2]
+
+######### VOLTAR AO GRAY ###################
+seguir_caminho(encontrar_caminho_bfs(tabuleiro, (linha, coluna), gray[0]))
+
 imprimeTabuleiro()
