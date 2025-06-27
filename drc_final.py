@@ -3,7 +3,7 @@ from pybricks.pupdevices import Motor, ColorSensor, UltrasonicSensor, ForceSenso
 from pybricks.parameters import Axis, Button, Color, Direction, Port, Side, Stop
 from pybricks.robotics import DriveBase
 from pybricks.tools import wait, StopWatch
-hub = PrimeHub(top_side=Axis.Z, front_side=-Axis.X, broadcast_channel=125)
+hub = PrimeHub(top_side=Axis.Z, front_side=-Axis.X, observe_channels=[120], broadcast_channel=125)
 
 ########### VARIAVEIS ###########
 n = 5 #LINHAS (QUANTO O ROBO DESCE)
@@ -33,8 +33,8 @@ motorE = Motor(Port.E, Direction.COUNTERCLOCKWISE)
 motorD = Motor(Port.F, Direction.CLOCKWISE)
 motorG = Motor(Port.B, Direction.COUNTERCLOCKWISE) #GARRA
 drive_base = DriveBase(motorE, motorD, 56, 120)
-drive_base.settings(straight_speed=130, turn_rate=50)
 drive_base.use_gyro(True)
+drive_base.settings(straight_speed=200, turn_rate=50)
 
 ########### SENSORES ###########
 color_sensorD = ColorSensor(Port.D)
@@ -47,12 +47,13 @@ color_sensorL.detectable_colors(MINHAS_CORES)
 ########### FUNCOES ###########
 ########### FECHA A GARRA COM O BLOCO ###########
 def fechar_garra():
-    motorG.run_target(200, 200)
+    motorG.control.limits(torque=1000)
+    motorG.run_target(180,150)
     wait(500)
-
+    
 ########### ABRE A GARRA E SOLTA O BLOCO ###########
 def abrir_garra():
-    motorG.run_target(200, 40)
+    motorG.run_target(100, -40)
     wait(500)
 
 ########### IMPRIME O TABULEIRO FORMATADO ###########
@@ -110,7 +111,7 @@ def virarPara(direcao_destino):
     # Executa o giro
     direcao=direcao_destino
     #print(f"Virando para: {direcao}")
-    drive_base.turn(angulo_giro, then=Stop.HOLD, wait=True)
+    drive_base.turn(angulo_giro)
     wait(1000) # Pequena pausa para estabilizar   
 
 ########### VIRA O ROBO USANDO VALORES ABSOLUTOS ###########
@@ -126,16 +127,31 @@ def viraAngulo(angulo_relativo):
             break
     virarPara(nova_direcao_letra)
 
+########### DADO DUAS COORDENADAS ELE VIRA EM DIREÇAO AO ALVO ###############
+def virarParaCoordenada (atual, alvo):
+    (alvo_linha, alvo_coluna) = alvo
+    (atual_linha, atual_coluna) = atual
+    ######## VIRA O ROBO PARA A DIRECAO NECESSARIA ##########
+    if alvo_linha > atual_linha:
+        direcao_necessaria = 'B'  # Baixo
+    elif alvo_linha < atual_linha:
+        direcao_necessaria = 'C'  # Cima
+    elif alvo_coluna > atual_coluna:
+        direcao_necessaria = 'E'  # Aumentar a coluna = ir para Esquerda
+    elif alvo_coluna < atual_coluna:
+        direcao_necessaria = 'D'  # Diminuir a coluna = ir para Direita
+    virarPara(direcao_necessaria)
+
 ########### ANDA PELA BORDA ATÉ ENCONTRAR O AZUL OU PRETO RETORNA QTD DE QUADRADOS ###########
 def andarBorda():
     drive_base.reset(0,0)
     while ler_cor()!=Color.MY_BLACK and ler_cor()!=Color.MY_BLUE:
-        drive_base.straight(10, then=Stop.NONE)
-    return drive_base.distance()//300
+        drive_base.straight(5, then=Stop.NONE)
+    return drive_base.distance()//290
 
 ########### ALINHA O ROBO PARALELO A LINHA PRETA ###########
 def alinharPreto():
-    while ler_cor()!= Color.MY_BLACK and ler_cor()!=Color.MY_BLUE:
+    while ler_cor()!= Color.MY_BLACK:
             drive_base.drive(100, 0)
     drive_base.stop()
 
@@ -148,6 +164,31 @@ def alinharPreto():
     motorD.stop()
     wait(100)
     drive_base.straight(-30)
+
+########### ALINHA O ROBO PARALELO AO QUADRADO AMARELO ###########
+def alinharAmarelo():
+    while color_sensorE.reflection()<95:
+        motorE.run(-60)
+    motorE.stop()
+
+    while color_sensorD.reflection()<95:
+        motorD.run(-60)
+    motorD.stop()
+    wait(100)
+
+    drive_base.straight(-75)
+
+########### ALINHA O ROBO PARALELO AO QUADRADO AZUL ###########
+def alinharAzul():
+    while color_sensorE.reflection()<90:
+        motorE.run(-50)
+    motorE.stop()
+
+    while color_sensorD.reflection()<90:
+        motorD.run(-50)
+    motorD.stop()
+    wait(100)
+    drive_base.straight(-50)
 
 ########### COMPLETA UMA DAS LATERAIS COM BRANCO (TALVEZ REDUNDANTE) ###########
 def preencher_borda(linha_inicial, coluna_inicial, direcao_percurso, quadrados_percorridos):
@@ -254,7 +295,7 @@ def encontrar_desconhecido_mais_proximo(mapa_de_cores, posicao_atual):
     # 2. Testa cada célula desconhecida para ver qual tem o caminho mais curto
     for alvo in desconhecidos:
         # Usa a função BFS que já temos para encontrar o caminho
-        caminho_candidato = encontrar_caminho_bfs(mapa_de_cores, posicao_atual, alvo)
+        caminho_candidato = encontrar_caminho_otimizado(mapa_de_cores, posicao_atual, alvo, 40)
 
         # Se um caminho válido foi encontrado para este alvo
         if caminho_candidato:
@@ -265,20 +306,20 @@ def encontrar_desconhecido_mais_proximo(mapa_de_cores, posicao_atual):
 
     return caminho_mais_curto
 
-########### RETORNA O CAMINHO PARA O VERMELHO MAIS DISTANTE DE MIM ###########
-def encontrar_vermelho_distante(vermelhos, posicao_atual):
+########### RETORNA O CAMINHO PARA O QUADRADO MAIS DISTANTE DE MIM ###########
+def encontrar_mais_distante(alvos, posicao_atual):
     global tabuleiro
     # Se não há mais células desconhecidas, retorna None
-    if not vermelhos:
+    if not alvos:
         return None
 
     melhor_alvo = None
     caminho_mais_longo = None
 
     # 2. Testa cada célula desconhecida para ver qual tem o caminho mais curto
-    for alvo in vermelhos:
+    for alvo in alvos:
         # Usa a função BFS que já temos para encontrar o caminho
-        caminho_candidato = encontrar_caminho_bfs(tabuleiro, posicao_atual, alvo)
+        caminho_candidato = encontrar_caminho_otimizado(tabuleiro, posicao_atual, alvo, 20)
 
         # Se um caminho válido foi encontrado para este alvo
         if caminho_candidato:
@@ -310,22 +351,22 @@ def explorar_interior(caminho_a_seguir):
 
         drive_base.reset(0,0)
         while drive_base.distance()<=300:
-            drive_base.straight(10, then=Stop.NONE)
+            drive_base.straight(5, then=Stop.NONE)
             if ler_cor()==Color.MY_YELLOW:
                 drive_base.stop()
-                drive_base.straight(-drive_base.distance())
+                #drive_base.straight(-drive_base.distance())
                 tabuleiro[alvo_linha][alvo_coluna]=Color.MY_YELLOW
+                alinharAmarelo()
                 viraAngulo(90)
-                drive_base.straight(50)
                 return
             elif (ler_cor()==Color.MY_RED or ler_cor()==Color.MY_GREEN) and drive_base.distance()>99:
                 drive_base.stop()
-                wait(100)
                 tabuleiro[alvo_linha][alvo_coluna]=ler_cor()
-                drive_base.straight(150)
+                drive_base.straight(155)
                 break
         linha, coluna = pos_proxima
         if tabuleiro[linha][coluna]==Color.NONE: tabuleiro[linha][coluna]=Color.WHITE
+    
     return
 
 ########### ANALISA O TABULEIRO PREENCHIDO E SALVA OS PONTOS NOTAVEIS ###########
@@ -351,12 +392,13 @@ def pontos_notaveis():
 
 ########### PEGA O BLOCO VERMELHO N E VOLTA PARA PONTO DE ENTRADA  ###########
 def pegar_bloco_vermelho(numero):
+    drive_base.settings(straight_speed=150, turn_rate=50)
     while ler_cor()!=Color.MY_BLUE:
-        drive_base.straight(10, then=Stop.NONE)
-    drive_base.straight(55)
+        drive_base.straight(5, then=Stop.NONE)
+    drive_base.straight(60)
     viraAngulo(90)
     while ler_cor()==Color.MY_BLUE:
-        drive_base.straight(10, then=Stop.NONE)
+        drive_base.straight(5, then=Stop.NONE)
     hub.speaker.beep(500, 100)
     drive_base.straight(-30)
     viraAngulo(-90)
@@ -376,32 +418,35 @@ def pegar_bloco_vermelho(numero):
         fechar_garra()
         drive_base.straight(-530)
     
-    viraAngulo(90)
-    drive_base.straight(-50)
-
 ########### PEGA O BLOCO VERDE E PINTA AZUL DE BRANCO ###########
-def pegar_bloco_verde():
-    global tabuleiro, linha, coluna, direcao
+def pegar_bloco_verde(ponto_entrada):
+    drive_base.settings(straight_speed=150, turn_rate=50)
+    global tabuleiro, linha, coluna, direcao, azul
     while ler_cor()!=Color.MY_BLUE:
-        drive_base.straight(10, then=Stop.NONE)
-    drive_base.straight(50)
+        drive_base.straight(5, then=Stop.NONE)
+    drive_base.straight(60)
     viraAngulo(-90)
     while ler_cor()!=Color.MY_BLACK:
-        drive_base.straight(10, then=Stop.NONE)
+        drive_base.straight(5, then=Stop.NONE)
     viraAngulo(90)
-    
     abrir_garra()
     drive_base.straight(320)
+    drive_base.straight(-10)
+    motorG.hold()
+    drive_base.turn(30)
+    wait(100)
+    drive_base.turn(-30)
+    drive_base.straight(50)
     fechar_garra()
-    drive_base.straight(-400)
-    '''
-    if direcao == 'C': linha = azul[1][0]
-    elif direcao == 'B': linha = azul[0][0]
-    elif direcao == 'D': coluna = azul[0][1]
-    elif direcao == 'E': coluna = azul[1][1]  
-    '''
+    drive_base.straight(110)
+    viraAngulo(90)
+    drive_base.straight(50)
+
     tabuleiro[azul[0][0]][azul[0][1]]=Color.WHITE
     tabuleiro[azul[1][0]][azul[1][1]]=Color.WHITE
+    
+    pos_final = encontrar_mais_distante(azul, ponto_entrada)
+    linha,coluna = pos_final[-1]
 
 ########### ENTREGA O BLOCO SOBRE O CIRCULO ###########
 def entregar():
@@ -416,15 +461,26 @@ def entregar():
     ####### CASO O SENSOR DA ESQUERDA ESTEJA FORA ##########
     while color_sensorE.color()!=Color.MY_RED and color_sensorE.color()!=Color.MY_GREEN:
         motorD.run(-100)
+        motorE.run(100)
     motorD.stop()
+    motorE.stop()
 
     ####### CASO O SENSOR DA DIREITA ESTEJA FORA ##########
     while color_sensorD.color()!=Color.MY_RED and color_sensorD.color()!=Color.MY_GREEN:
         motorE.run(-100)
+        motorD.run(100)
+    
+    motorD.stop()
     motorE.stop()
     wait(100)
+    angulo_correcao = -drive_base.angle()
 
-    angulo_correcao=drive_base.angle()
+    while ler_cor()!=Color.WHITE:
+        drive_base.drive(100, 0)
+    drive_base.stop()
+    drive_base.straight(20)
+    drive_base.turn(angulo_correcao)
+    drive_base.straight(-50)
     ########### VAI PARA O COMEÇO DO CIRCULO PARA ENTREGA CORRETA #########
     while ler_cor()!=Color.WHITE:
         drive_base.drive(-100, 0)
@@ -434,15 +490,81 @@ def entregar():
     ############## SOLTA O BLOCO #######
     abrir_garra()
     tabuleiro[linha][coluna]=Color.MY_YELLOW
-    drive_base.straight(-75)
-    motorG.run_target(200, 250)
+    drive_base.straight(-85)
+    fechar_garra()
     drive_base.reset(0,0)
-    drive_base.turn(-angulo_correcao)
     drive_base.straight(-100)
 
+########### ENCONTRA O CAMINHO COM MENOS CURVAS NO CAMINHO (TESTAR PENALIDADE DA CURVA) #################
+def encontrar_caminho_otimizado(mapa_de_cores, inicio, fim, penalidade_curva=10):
+    OBSTACULOS = (Color.MY_YELLOW, Color.MY_BLUE)
+    total_linhas, total_colunas = len(mapa_de_cores), len(mapa_de_cores[0])
+
+    # Armazena tuplas de: (custo, posição, caminho_lista)
+    fila = [(0, inicio, [inicio])]
+    
+    # Dicionário para guardar o menor custo já encontrado para cada célula
+    custos = {inicio: 0}
+
+    while fila:
+        # --- MUDANÇA PRINCIPAL: ENCONTRAR O MENOR CUSTO MANUALMENTE ---
+        # 1. Encontra o índice do item com o menor custo na lista 'fila'
+        menor_custo_encontrado = float('inf')
+        indice_do_menor = -1
+        for i, (custo, pos, caminho) in enumerate(fila):
+            if custo < menor_custo_encontrado:
+                menor_custo_encontrado = custo
+                indice_do_menor = i
+        
+        # 2. Remove esse item de menor custo da lista para processá-lo
+        custo_atual, pos_atual, caminho_atual = fila.pop(indice_do_menor)
+        # ----------------------------------------------------------------
+
+        if custo_atual > custos[pos_atual]:
+            continue
+
+        if pos_atual == fim:
+            return caminho_atual
+
+        direcao_anterior = None
+        if len(caminho_atual) > 1:
+            (r_anterior, c_anterior), (r_atual, c_atual) = caminho_atual[-2], pos_atual
+            if r_atual > r_anterior: direcao_anterior = 'B'
+            elif r_atual < r_anterior: direcao_anterior = 'C'
+            elif c_atual > c_anterior: direcao_anterior = 'E'
+            elif c_atual < c_anterior: direcao_anterior = 'D'
+
+        (r, c) = pos_atual
+        vizinhos = [(r - 1, c, 'C'), (r + 1, c, 'B'), (r, c - 1, 'D'), (r, c + 1, 'E')]
+
+        for prox_r, prox_c, direcao_nova in vizinhos:
+            prox_pos = (prox_r, prox_c)
+            
+            if (0 <= prox_r < total_linhas and 0 <= prox_c < total_colunas and
+                    mapa_de_cores[prox_r][prox_c] not in OBSTACULOS):
+                
+                custo_movimento = 1
+                if direcao_anterior and direcao_anterior != direcao_nova:
+                    custo_movimento += penalidade_curva
+
+                novo_custo_total = custo_atual + custo_movimento
+
+                if prox_pos not in custos or novo_custo_total < custos[prox_pos]:
+                    custos[prox_pos] = novo_custo_total
+                    novo_caminho = caminho_atual + [prox_pos]
+                    # Adiciona o novo caminho na lista. Não precisa de heappush.
+                    fila.append((novo_custo_total, prox_pos, novo_caminho))
+
+    return None
+
 ########### MAIN ###########
+########### ESPERA RECEBER TRUE PELO CONTROLE PARA INICIAR A PROGRAMACAO ##########
+hub.speaker.beep(700, 200)
+while not hub.ble.observe(120):
+    wait(10)
+
 ########### SOBE A GARRA PARA ANDAR ###########
-motorG.run_target(200, 250)
+motorG.run_target(200,190)
 
 ########### SAINDO DO CINZA ###########
 while ler_cor()==Color.MY_GRAY:
@@ -500,17 +622,16 @@ while desconhecido:
 pontos_notaveis()
 
 ########## VOLTA PARA O PONTO DE ENTRADA ############
-seguir_caminho(encontrar_caminho_bfs(tabuleiro, (linha, coluna), ponto_entrada))
-alinharPreto()
-viraAngulo(90)
-
+seguir_caminho(encontrar_caminho_otimizado(tabuleiro, (linha, coluna), ponto_entrada, 20))
+virarParaCoordenada(ponto_entrada, azul[0])
+alinharAzul()
 imprimeTabuleiro()
-drive_base.settings(straight_speed=200, turn_rate=50)
 
 ########## COLETAR E ENTREGAR OS BLOCOS VERMELHO ############
 for i in range(3):
     pegar_bloco_vermelho(i+1)
-    caminho= encontrar_vermelho_distante(vermelhos, ponto_entrada)
+    caminho= encontrar_mais_distante(vermelhos, ponto_entrada)
+    drive_base.settings(straight_speed=420, turn_rate=50)
     seguir_caminho(caminho)
     entregar()
     ######### INVERTER O CAMINHO E RETIRAR A COORDENADA OCUPADA #######
@@ -520,19 +641,16 @@ for i in range(3):
     linha, coluna = caminho[0]
     ######### VOLTAR AO PONTO DE ENTRADA ###################
     seguir_caminho(caminho)
-    alinharPreto()
-    viraAngulo(90)
+    virarParaCoordenada(ponto_entrada, azul[0])
+    alinharAzul()
 
 ########## COLETAR E ENTREGAR BLOCO VERDE ############
-pegar_bloco_verde()
-caminho= encontrar_caminho_bfs(tabuleiro, ponto_entrada, verde[0])
+pegar_bloco_verde(ponto_entrada)
+drive_base.settings(straight_speed=390, turn_rate=50)
+caminho= encontrar_caminho_otimizado(tabuleiro, (linha,coluna), verde[0], 20)
 seguir_caminho(caminho)
 entregar()
-
 ######### ATUALIZAR A POSICAO DO ROBO PARA A CASA ANTERIOR ##########
 linha, coluna = caminho[-2]
-
 ######### VOLTAR AO GRAY ###################
-seguir_caminho(encontrar_caminho_bfs(tabuleiro, (linha, coluna), gray[0]))
-
-imprimeTabuleiro()
+seguir_caminho(encontrar_caminho_otimizado(tabuleiro, (linha, coluna), gray[0], 20))
