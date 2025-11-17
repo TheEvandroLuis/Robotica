@@ -71,7 +71,7 @@ def ler_cor():
     return cor_lida
     
 ########### VIRA O ROBO USANDO AS DIRECOES DO TABULEIRO ###########
-def virarPara(direcao_destino):
+def virarPara(direcao_destino,num):
     global direcao
     if direcao == direcao_destino:
         return direcao_destino
@@ -84,10 +84,11 @@ def virarPara(direcao_destino):
         angulo_giro += 360      
     # Executa o giro
     direcao=direcao_destino
-    print(f"Virando para: {direcao}")
+    #print(f"Virando para: {direcao}")
     drive_base.turn(angulo_giro)
     wait(500) # Pequena pausa para estabilizar
-    alinharQuadrado()
+    if(num==1):
+        alinharQuadrado()
 
 ########### VIRA O ROBO USANDO AS ANGULO MULTIPLOS DE 90 ###########
 def viraAngulo(angulo_relativo):
@@ -100,7 +101,7 @@ def viraAngulo(angulo_relativo):
         if ang == novo_angulo_normalizado:
             nova_direcao_letra = d
             break
-    virarPara(nova_direcao_letra)
+    virarPara(nova_direcao_letra,0)
 
 ########### DADO DUAS COORDENADAS ELE VIRA EM DIREÇAO AO ALVO ###############
 def virarParaCoordenada (atual, alvo):
@@ -116,8 +117,21 @@ def virarParaCoordenada (atual, alvo):
         direcao_necessaria = 'D'  # Aumentar a coluna = ir para Direita
     elif alvo_coluna < atual_coluna:
         direcao_necessaria = 'E'  # Diminuir a coluna = ir para Esquerda
-    virarPara(direcao_necessaria)
+    virarPara(direcao_necessaria,1)
 
+
+def alinharVerde():
+    while ler_cor()== Color.MY_GREEN:
+        drive_base.drive(100, 0)
+        drive_base.stop()
+    while color_sensorE.color()!=Color.MY_GREEN:
+        motorE.run(-50)
+    motorE.stop()
+    while color_sensorD.color()!=Color.MY_GREEN:
+        motorD.run(-50)
+    motorD.stop()
+    wait(100)
+    drive_base.straight(-30)
 ########### ALINHA O ROBO PARALELO ###########
 def alinharQuadrado():
     cor_atual = ler_cor()
@@ -148,7 +162,7 @@ def alinharQuadrado():
             motorD.run(-50)
         motorD.stop()    
     wait(100)
-    drive_base.straight(-30)
+    drive_base.straight(-40)
 
 ########### RETORNA UMA LISTA COM O CAMINHO ENTRE DOIS PONTOS ###########
 def encontrar_caminho_bfs(mapa_de_cores, inicio, fim):
@@ -346,22 +360,54 @@ def explorar_tabuleiro(caminho_a_seguir):
             drive_base.straight(10, then=Stop.NONE)
         drive_base.stop()
         drive_base.straight(30)
+
         if ler_cor()==Color.MY_YELLOW :
             hub.ble.broadcast(1)
             tabuleiro[alvo_linha][alvo_coluna]= Color.MY_YELLOW
+            amarelos.append((alvo_linha,alvo_coluna))
             drive_base.straight(-150)
             return
+        
+        if ler_cor()==Color.MY_GREEN:
+            drive_base.stop()
+            verde.append((alvo_linha,alvo_coluna))
+            tabuleiro[alvo_linha][alvo_coluna]= Color.MY_GREEN
+            drive_base.straight(-150)
+            viraAngulo(90)
+            alinharQuadrado()
+            viraAngulo(90)
+            hub.ble.broadcast(7)
+            wait(1500)
+            drive_base.settings(straight_speed=150, turn_rate=50)
+            drive_base.straight(-420)
+            drive_base.settings(straight_speed=200, turn_rate=50)
+            drive_base.straight(420)
+            viraAngulo(90)
+            alinharQuadrado()
+            hub.ble.broadcast(7)
+            viraAngulo(-90)
+            drive_base.settings(straight_speed=150, turn_rate=50)
+            drive_base.straight(-420)
+            drive_base.settings(straight_speed=200, turn_rate=50)
+            drive_base.straight(420)
+            viraAngulo(-90)
+            drive_base.straight(80)
+            viraAngulo(-90)
+            drive_base.straight(330)
+            hub.ble.broadcast(3)
+            wait(2000)
+            linha, coluna = pos_proxima
+            return
+        
         drive_base.straight(150, then=Stop.BRAKE)        
         linha, coluna = pos_proxima
         tabuleiro[linha][coluna]=ler_cor()
+
         if ler_cor()==Color.MY_RED:
             hub.ble.broadcast(2)
             drive_base.straight(50)
-        elif ler_cor()==Color.MY_GREEN:
-            hub.ble.broadcast(3)
-            drive_base.stop()
-            wait(2000)
-
+            vermelhos.append((alvo_linha,alvo_coluna))
+    
     return
 
 ########### FAZ O ROBO SEMPRE APONTAR PARA POSICAO D ###########
@@ -426,8 +472,10 @@ ponto_entrada = (0, 0)
 ################ COMEÇA EXPLORAR TABULEIRO ###############
 desconhecido = encontrar_desconhecido_mais_proximo(tabuleiro, ponto_entrada)
 while desconhecido:
-    print(desconhecido)
+    print(f"{linha},{coluna}")
     explorar_tabuleiro(desconhecido)
     desconhecido = encontrar_desconhecido_mais_proximo(tabuleiro, (linha,coluna))
+    if(len(verde)==1 and len(vermelhos)==4):
+        break
 hub.ble.broadcast(6)
 imprimeTabuleiro()
