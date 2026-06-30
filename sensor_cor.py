@@ -10,7 +10,7 @@ Color.MY_WHITE= Color(200, 15, 97)
 Color.MY_BLACK= Color(220, 20, 20)
 Color.MY_YELLOW = Color(42, 65, 90)
 Color.MY_RED = Color(350, 78, 50)
-Color.MY_GREEN = Color(170, 69, 40)
+Color.MY_GREEN = Color(167, 72, 73)
 MINHAS_CORES = (Color.MY_WHITE, Color.MY_BLACK, Color.MY_YELLOW, Color.MY_RED, Color.MY_GREEN)
 ########### SENSORES ###########
 color_sensorD = ColorSensor(Port.C)
@@ -19,8 +19,11 @@ color_sensorL = ColorSensor(Port.A)
 color_sensorE.detectable_colors(MINHAS_CORES)
 color_sensorD.detectable_colors(MINHAS_CORES)
 color_sensorL.detectable_colors(MINHAS_CORES)
-
-
+#amearelo 52,48,100
+#vernekh9 352 80 95
+#verde 157,80,65
+#bracno 0,0,100
+#preto 201,48,100
 ########### FUNCOES ###########
 ################### CALCULAR MÉDIAS #################
 def calcular_media_hsv(lista_leituras):

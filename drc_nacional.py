@@ -17,11 +17,11 @@ amarelos=[]
 #Color.MY_RED = Color(351, 79, 82)
 #Color.MY_GREEN = Color(165, 75, 52)
 ########### CORES ###########
-Color.MY_WHITE= Color(0, 0, 100)
-Color.MY_BLACK= Color(204, 17, 22)
-Color.MY_YELLOW = Color(54, 45, 100)
-Color.MY_RED = Color(351, 79, 92)
-Color.MY_GREEN = Color(158, 81, 62)
+Color.MY_WHITE= Color(3, 0, 100)
+Color.MY_BLACK= Color(209, 20, 31)
+Color.MY_YELLOW = Color(57, 52, 100)
+Color.MY_RED = Color(350, 79, 82)
+Color.MY_GREEN = Color(166, 72, 65)
 MINHAS_CORES = (Color.MY_YELLOW, Color.MY_RED, Color.MY_GREEN, Color.MY_WHITE, Color.MY_BLACK)
 CORES_DE_PRIORIDADE = (Color.MY_YELLOW, Color.MY_RED, Color.MY_GREEN, Color.MY_WHITE, Color.MY_BLACK)
 
@@ -551,7 +551,7 @@ while desconhecido:
         break
 
 ################ ENTREGA NOS VERMELHOS ###############
-for i in range(4):
+for i in range(len(vermelhos)):
     pontos_notaveis()
     caminho = encontrar_mais_distante(vermelhos, (linha,coluna))
     seguir_caminho(caminho)
@@ -571,3 +571,5 @@ caminho_fim=encontrar_caminho_otimizado(tabuleiro,(linha,coluna),(0,0),50)
 seguir_caminho(caminho_fim)
 imprimeTabuleiro()
 transmitir("BANDEIRA")
+
+drive_base.straight
