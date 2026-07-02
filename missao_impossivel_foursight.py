@@ -26,8 +26,7 @@ direcao = 'C'
 # ==========================================
 # LÓGICA DO GRAFO 
 # ==========================================
-mapa = {
-    (0,0): {'C': 1, 'D':1, 'E': 0, 'B':0},
+mapa = {(0,0): {'C': 1, 'D':1, 'E': 0, 'B':0},
     (0,1): {'C': 1, 'D':1, 'E': 1, 'B':0},
     (0,2): {'C': 1, 'D':0, 'E': 1, 'B':0},
     (1,0): {'C': 1, 'D':1, 'E': 0, 'B':1},
@@ -42,28 +41,22 @@ mapa = {
     (4,0): {'C': 0, 'D':1, 'E': 0, 'B':1},
     (4,1): {'C': 0, 'D':1, 'E': 1, 'B':1},
     (4,2): {'C': 0, 'D':0, 'E': 1, 'B':1}}
-
-MOVIMENTO = {
-    'C': (1, 0),
-    'B': (-1, 0),
-    'D': (0, 1),
-    'E': (0, -1)}
-   
-visitados = set()
+MOVIMENTO = { 'C': (1, 0),
+            'B': (-1, 0),
+            'D': (0, 1),
+            'E': (0, -1)}
 PRIORIDADE = ['C', 'D', 'E', 'B']
 
+# ==========================================
+# FUNÇOES
+# ==========================================
 ########### SEGUIDOR DE LINHA ###########
-def seguir_linha(sensor):
+def seguir_linha():
     alvo=90
     kp=1.2
-    if sensor == 'D':
-        erro = color_sensorM.reflection() - alvo
-        correcao = erro * kp 
-        drive_base.drive(300, correcao)
-    elif sensor == 'E':
-        erro = alvo - color_sensorM.reflection()
-        correcao = erro * kp
-        drive_base.drive(300, correcao)
+    erro = alvo - color_sensorM.reflection()
+    correcao = erro * kp
+    drive_base.drive(300, correcao)
 
 ########### IMPRIME MAPA ###########
 def imprimir_mapa(mapa):
@@ -183,162 +176,240 @@ def virar_para_no(origem, destino):
     else:
         print(f"Aviso: Os nós {origem} e {destino} são idênticos ou inválidos.")
 
+########### ENCONTRAR MENOR CAMINHO ENTRE DOIS PONTOS #############
+########### RETORNA UMA LISTA COM AS COORDENADAS A SEREM SEGUIDAS ##########
+def calcular_menor_caminho(mapa, inicio, destino): 
+    fila = []
+    fila.append((inicio, [inicio]))
+    
+    visitados_bfs = set()
+    visitados_bfs.add(inicio)
+
+    while len(fila) > 0:
+        # Pega o primeiro elemento da fila
+        no_atual, caminho_atual = fila.pop(0)
+
+        # Condição de vitória
+        if no_atual == destino:
+            return caminho_atual
+
+        saidas = mapa.get(no_atual, {})
+        # Como a ordem exata de busca no BFS não importa para o menor caminho,
+        # podemos iterar direto nos itens disponíveis.
+        for direcao, estado in saidas.items():
+            if estado == 2: # Navega apenas por caminhos SEGUROS
+                dy, dx = MOVIMENTO[direcao]
+                vizinho = (no_atual[0] + dy, no_atual[1] + dx)
+
+                if vizinho not in visitados_bfs:
+                    visitados_bfs.add(vizinho)
+                    # Cria a nova rota anexando a COORDENADA do vizinho, não a direção
+                    novo_caminho = caminho_atual + [vizinho] 
+                    fila.append((vizinho, novo_caminho))
+
+    print(f"Erro: Não há rota segura entre {inicio} e {destino}")
+    return None
+
+# ==========================================
+# MAIN
+# ==========================================
 ######################## INDO PARA O 0,0 NO INICIO DO JOGO ########################
 while color_sensorE.color()!=Color.WHITE and color_sensorD.color()!=Color.WHITE:
-    seguir_linha('D')
+    seguir_linha()
 drive_base.straight(50)
 virarPara('E')
-while color_sensorE.color()!=Color.WHITE and color_sensorD.color()!=Color.WHITE:
-    seguir_linha('D')
-drive_base.straight(50)
-virarPara('C')
+while color_sensorE.color()!=Color.WHITE and color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
+    seguir_linha()
 
-# Mapeamento vetorial para saber qual vizinho estamos olhando
-posicao_atual = (0, 0) # Ponto de partida
-destino = (4, 2)       # Ponto de chegada
+################## CASO TENHA UM VERMELHO ENTRE A ENTRADA E O 0,0 ############################
+if color_sensorM.color()== Color.RED:
+    drive_base.straight(-50)
+    posicao_atual= (0,1)
+    posicao_inicial= (0,1)
+    virarPara('D')
+    while color_sensorE.color()!=Color.WHITE:
+        seguir_linha()
+    drive_base.straight(50)
+    virarPara('C')
 
-visitados = set()
-visitados.add(posicao_atual)
+################## CASO NÃO TENHA UM VERMELHO ENTRE A ENTRADA E O 0,0 ############################
+else:
+    drive_base.straight(50)
+    virarPara('C')
+    posicao_atual = (0, 0) # Ponto de partida
+    posicao_inicial= (0, 0)
 
+######################## COMEÇANDO A PROCURAR O FINAL DO TABULEIRO ########################
+#Pontos de chegada
+destino42 = (4, 2)       
+destino41 = (4, 1)
 pilha = []
 pilha.append(posicao_atual)
-
 while len(pilha) > 0:
-    # 1. CONDIÇÃO DE PARADA
-    if posicao_atual == destino:
-        break
-   
+    ####### CONDIÇÃO DE PARADA VERIFICA SE CHEGAMOS NO FINAL ################
+    if posicao_atual == destino41 or posicao_atual==destino42:
+        ############ VIRA PARA O LOCAL CORRETO EM DIRECAO A SAIDA A DEPENDER DO PONTO FINAL
+        if posicao_atual==(4,2):
+            virarPara('E')
+        else:
+            virarPara('D')
+        drive_base.reset()
+        while color_sensorD.color()!=Color.WHITE and color_sensorE.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
+            seguir_linha()
+        drive_base.stop()
+        ############# CASO ENCONTRE UM VERMELHO MUDA O DESTINO PARA O OUTRO LADO
+        if color_sensorM.color()==Color.RED:
+            drive_base.straight(-drive_base.distance())   
+            if posicao_atual==(4,2):
+                mapa[posicao_atual]['E']=-1
+                destino42 = (4,1)
+            else:
+                mapa[posicao_atual]['D']=-1
+                destino41 = (4,2)  
+        ############# DO CONTRARIO FAZ A MANOBRA NO FINAL PARA COMECA O SPEEDRUN E ENCERRA A PROCURA                  
+        else:
+            drive_base.straight(50)
+            virarPara('C')
+            drive_base.straight(200)
+            virarPara('B')
+            while color_sensorE.color()!=Color.WHITE and color_sensorD.color()!=Color.WHITE:
+                seguir_linha()
+            drive_base.straight(50)
+            break
+    
     avancou = False
-    # 2. BUSCA DE NOVOS CAMINHOS
-    # Define a ordem exata que o robô deve testar os caminhos
+
+    ############# PROCURA POR CAMINHOS A SEREM SEGUIDOS ###################
     for direcao_vizinho in PRIORIDADE:
-        # Pegamos o estado daquela direção específica no mapa
+        ############# VERIFICA QUAL CAMINHO SEGUIR SEGUINDO A PRIORIDADE
         estado = mapa[posicao_atual].get(direcao_vizinho)
-        if estado == 1: # Caminho existe e é desconhecido
+
+        if estado == 1 or estado==2:  #TESTANDO UMA IDEIA AQUI
             dy, dx = MOVIMENTO[direcao_vizinho]
             no_destino = (posicao_atual[0] + dy, posicao_atual[1] + dx)
+            virarPara(direcao_vizinho)
 
-            #Se nao foi visitado ainda por outro nó (talvez excluir se quiser testar todos os caminhos)
-            if no_destino not in visitados:
-                virarPara(direcao_vizinho)
-                #print(f"Avançando para {direcao} -> Nó {no_destino}")
-                
-                drive_base.reset()
-                #Anda ate o cruzamento ou até ver vermelho
-                if (direcao=='D' and posicao_atual[0]==4) or (direcao=='E' and posicao_atual[0]==0):
-                    while color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
-                        seguir_linha('E')
-                elif (direcao=='D' and posicao_atual[0]==0) or (direcao=='E' and posicao_atual[0]==4):
-                    while color_sensorE.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
-                        seguir_linha('D')
-                else:  
-                    while color_sensorE.color()!=Color.WHITE and color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
-                        seguir_linha('D')
-                drive_base.stop()
-                #Se encontrou vermelho volta (verificar erro caso o vermelho esteja muito perto do cruzamento)
-                if color_sensorM.color()==Color.RED:
-                    drive_base.straight(-drive_base.distance())
-                    if direcao =='C': 
-                        direcao_oposta = 'B'
-                    elif direcao=='B':
-                        direcao_oposta = 'C'
-                    elif direcao=='E':
-                        direcao_oposta = 'D'
-                    elif direcao=='D':
-                        direcao_oposta = 'E'
-                    #print(f"Direcao: {direcao} / Direcao Vizinho: {direcao_vizinho}")
-                    #Marca ida e volta como vermelho
-                    mapa[posicao_atual][direcao] = -1
-                    mapa[no_destino][direcao_oposta] = -1
-                
-                #Chegou no destino e atualiza que o caminho é seguro
-                else:
-                    drive_base.straight(50)
-                    mapa[posicao_atual][direcao] = 2
-                    if direcao =='C': 
-                        direcao_oposta = 'B'
-                    elif direcao=='B':
-                        direcao_oposta = 'C'
-                    elif direcao=='E':
-                        direcao_oposta = 'D'
-                    elif direcao=='D':
-                        direcao_oposta = 'E'
-                    mapa[no_destino][direcao_oposta] = 2
-                    posicao_atual = no_destino
-                    visitados.add(posicao_atual)
-                    pilha.append(posicao_atual)
-                    avancou = True
-                    break # Para o for e recomeça o while no novo nó
-             
-    #caso fique em um beco sem saida volta para a interseccao anterior
+            drive_base.reset()
+            ###### ANDA ATÉ O CRUZAMENTO OU ATÉ VER UM VERMELHO
+            if (direcao=='D' and posicao_atual[0]==4) or (direcao=='E' and posicao_atual[0]==0):
+                while color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
+                    seguir_linha()
+            elif (direcao=='D' and posicao_atual[0]==0) or (direcao=='E' and posicao_atual[0]==4):
+                while color_sensorE.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
+                    seguir_linha()
+            else:  
+                while color_sensorE.color()!=Color.WHITE and color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
+                    seguir_linha()
+            drive_base.stop()
+            
+            ########## SE ENCONTROU VERMELHO VOLTA PARA O CRUZAMENTO
+            if color_sensorM.color()==Color.RED:
+                drive_base.straight(-drive_base.distance())
+                ####### MARCA A IDA E A VOLTA COMO -1
+                if direcao =='C': 
+                    direcao_oposta = 'B'
+                elif direcao=='B':
+                    direcao_oposta = 'C'
+                elif direcao=='E':
+                    direcao_oposta = 'D'
+                elif direcao=='D':
+                    direcao_oposta = 'E'
+                mapa[posicao_atual][direcao] = -1
+                mapa[no_destino][direcao_oposta] = -1
+
+            ########## SE CHEGOU AO CRUZAMENTO
+            else:
+                drive_base.straight(50)
+                ######### MARCA A IDA E VOLTA COMO SEGURO
+                if direcao =='C': 
+                    direcao_oposta = 'B'
+                elif direcao=='B':
+                    direcao_oposta = 'C'
+                elif direcao=='E':
+                    direcao_oposta = 'D'
+                elif direcao=='D':
+                    direcao_oposta = 'E'
+                mapa[no_destino][direcao_oposta] = 2
+                mapa[posicao_atual][direcao] = 2
+                posicao_atual = no_destino
+                pilha.append(posicao_atual)
+                avancou = True
+                break
+            
+    ############# CASO ESTEJA EM UM BECO SEM SAIDA
+    ############# EU ACHO QUE MARCANDO O CAMINHO DE VOLTA COMO -1 PODEMOS VISITAR NOVAMENTE OS CAMINHOS SEGUROS SEM CAIR EM UM LOOP 
     if not avancou:
-        # Se o loop 'for' terminou e 'avancou' continua False, é um beco sem saída.
-        no_descartado = pilha.pop()
-        print(f"Beco sem saída em {no_descartado}. Voltando...")
-        
+        no_descartado = pilha.pop()        
         if len(pilha) > 0:
-            print(pilha)
-            # O algoritmo "volta no tempo" para a decisão anterior
             no_destino = pilha[-1]
             virar_para_no(posicao_atual, no_destino)
             if (direcao=='D' and posicao_atual[0]==4) or (direcao=='E' and posicao_atual[0]==0):
-                    while color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
-                        seguir_linha('E')
+                while color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
+                    seguir_linha()
             elif (direcao=='D' and posicao_atual[0]==0) or (direcao=='E' and posicao_atual[0]==4):
                 while color_sensorE.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
-                    seguir_linha('D')
+                    seguir_linha()
             else:  
                 while color_sensorE.color()!=Color.WHITE and color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
-                    seguir_linha('E')
+                    seguir_linha()
             drive_base.straight(50)
             posicao_atual=no_destino
-            print(f"Retornou para {posicao_atual}")
-        else:
-            print("Mapa inteiro explorado, destino não encontrado.")
-
-
-################### CHEGAMOS NO PONTO 4,2 ###############
-virarPara('E')
-while color_sensorD.color()!=Color.WHITE:
-    seguir_linha('D')
-drive_base.straight(50)
-virarPara('C')
-drive_base.straight(100)
-virarPara('B')
-while color_sensorE.color()!=Color.WHITE and color_sensorD.color()!=Color.WHITE:
-    seguir_linha('D')
-drive_base.straight(50)
-virarPara('D')
-while color_sensorE.color()!=Color.WHITE and color_sensorD.color()!=Color.WHITE:
-    seguir_linha('D')
-drive_base.straight(50)
+            ####### MARCA A IDA E A VOLTA COMO -1
+            if direcao =='C': 
+                direcao_oposta = 'B'
+            elif direcao=='B':
+                direcao_oposta = 'C'
+            elif direcao=='E':
+                direcao_oposta = 'D'
+            elif direcao=='D':
+                direcao_oposta = 'E'
+            mapa[posicao_atual][direcao_oposta] = -1
+            mapa[no_destino][direcao] = -1
 
 ################## CAMINHO DE VOLTA ########################
-pilha.pop()
-while len(pilha) > 0:
-    print(pilha)
-    # O algoritmo "volta no tempo" para a decisão anterior
-    no_destino = pilha[-1]
+########## VAI ATÉ O DESTINO USADO PARA ACESSAR A SAIDA #################
+if pilha[-1]==(4,2):
+    virarPara('D')
+else:
+    virarPara('E')
+while color_sensorD.color()!=Color.WHITE and color_sensorE.color()!=Color.WHITE:
+    seguir_linha()
+drive_base.straight(50)
+
+########## ENCONTRAR O MELHOR CAMINHO DE VOLTA #################
+caminho_volta = calcular_menor_caminho(mapa, pilha[-1], posicao_inicial)
+
+########## SEGUE O CAMINHO ENCONTRADO ###################
+for no_destino in caminho_volta:  
     virar_para_no(posicao_atual, no_destino)
     if (direcao=='D' and posicao_atual[0]==4) or (direcao=='E' and posicao_atual[0]==0):
         while color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
-            seguir_linha('E')
+            seguir_linha()
     elif (direcao=='D' and posicao_atual[0]==0) or (direcao=='E' and posicao_atual[0]==4):
         while color_sensorE.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
-            seguir_linha('D')
+            seguir_linha()
     else:  
         while color_sensorE.color()!=Color.WHITE and color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
-            seguir_linha('E')
+            seguir_linha()
     drive_base.straight(50)
     posicao_atual=no_destino
-    pilha.pop()
 
 ############ CHEGAMOS NO 0,0  NA VOLTA #########################
-virarPara('D')
-while color_sensorD.color()!=Color.WHITE:
-    seguir_linha('D')
-drive_base.straight(50)
+########### SE A POSICAO INICIAL FOR (0,0) ##################
+if posicao_inicial == (0, 0):
+    virarPara('D')
+    while color_sensorD.color()!=Color.WHITE:
+        seguir_linha()
+    drive_base.straight(50)
+############ SE A POSICAO INICIAL FOR (0, 1) ############
+else: 
+    virarPara('E')
+    while color_sensorE.color()!=Color.WHITE:
+        seguir_linha()
+    drive_base.straight(50)
 virarPara('B')
 drive_base.straight(80)
 
-imprimir_mapa(mapa)
+##################### PROBLEMAS ##############
+####### FICA PERDIDO POR NAO PASSAR NOS CAMINHOS COM 2 ##########
+####### CRIAR UM CAMINHO OTIMIZADO ##############################
