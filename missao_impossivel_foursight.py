@@ -56,7 +56,13 @@ def seguir_linha():
     kp=1.2
     erro = alvo - color_sensorM.reflection()
     correcao = erro * kp
-    drive_base.drive(300, correcao)
+    drive_base.drive(250, correcao)
+def seguir_linha2():
+    alvo=90
+    kp=1.2
+    erro = alvo - color_sensorM.reflection()
+    correcao = erro * kp
+    drive_base.drive(500, correcao) #400
 
 ########### IMPRIME MAPA ###########
 def imprimir_mapa(mapa):
@@ -210,6 +216,8 @@ def calcular_menor_caminho(mapa, inicio, destino):
     print(f"Erro: Não há rota segura entre {inicio} e {destino}")
     return None
 
+
+
 # ==========================================
 # MAIN
 # ==========================================
@@ -284,7 +292,7 @@ while len(pilha) > 0:
         ############# VERIFICA QUAL CAMINHO SEGUIR SEGUINDO A PRIORIDADE
         estado = mapa[posicao_atual].get(direcao_vizinho)
 
-        if estado == 1 or estado==2:  #TESTANDO UMA IDEIA AQUI
+        if estado == 1:  #TESTANDO UMA IDEIA AQUI
             dy, dx = MOVIMENTO[direcao_vizinho]
             no_destino = (posicao_atual[0] + dy, posicao_atual[1] + dx)
             virarPara(direcao_vizinho)
@@ -329,8 +337,8 @@ while len(pilha) > 0:
                     direcao_oposta = 'D'
                 elif direcao=='D':
                     direcao_oposta = 'E'
-                mapa[no_destino][direcao_oposta] = 2
-                mapa[posicao_atual][direcao] = 2
+                mapa[no_destino][direcao_oposta] += 1
+                mapa[posicao_atual][direcao] += 1
                 posicao_atual = no_destino
                 pilha.append(posicao_atual)
                 avancou = True
@@ -341,6 +349,7 @@ while len(pilha) > 0:
     if not avancou:
         no_descartado = pilha.pop()        
         if len(pilha) > 0:
+            print(pilha)
             no_destino = pilha[-1]
             virar_para_no(posicao_atual, no_destino)
             if (direcao=='D' and posicao_atual[0]==4) or (direcao=='E' and posicao_atual[0]==0):
@@ -363,8 +372,8 @@ while len(pilha) > 0:
                 direcao_oposta = 'D'
             elif direcao=='D':
                 direcao_oposta = 'E'
-            mapa[posicao_atual][direcao_oposta] = -1
-            mapa[no_destino][direcao] = -1
+            #mapa[posicao_atual][direcao_oposta] = -1
+            #mapa[no_destino][direcao] = -1
 
 ################## CAMINHO DE VOLTA ########################
 ########## VAI ATÉ O DESTINO USADO PARA ACESSAR A SAIDA #################
@@ -373,33 +382,40 @@ if pilha[-1]==(4,2):
 else:
     virarPara('E')
 while color_sensorD.color()!=Color.WHITE and color_sensorE.color()!=Color.WHITE:
-    seguir_linha()
+    seguir_linha2()
 drive_base.straight(50)
 
 ########## ENCONTRAR O MELHOR CAMINHO DE VOLTA #################
-caminho_volta = calcular_menor_caminho(mapa, pilha[-1], posicao_inicial)
+caminho_volta = calcular_menor_caminho(mapa, pilha[-2], posicao_inicial)
+print(caminho_volta)
+print(posicao_atual)
 
 ########## SEGUE O CAMINHO ENCONTRADO ###################
 for no_destino in caminho_volta:  
     virar_para_no(posicao_atual, no_destino)
     if (direcao=='D' and posicao_atual[0]==4) or (direcao=='E' and posicao_atual[0]==0):
         while color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
-            seguir_linha()
+            seguir_linha2()
     elif (direcao=='D' and posicao_atual[0]==0) or (direcao=='E' and posicao_atual[0]==4):
         while color_sensorE.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
-            seguir_linha()
+            seguir_linha2()
     else:  
         while color_sensorE.color()!=Color.WHITE and color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
-            seguir_linha()
+            seguir_linha2()
     drive_base.straight(50)
     posicao_atual=no_destino
 
 ############ CHEGAMOS NO 0,0  NA VOLTA #########################
 ########### SE A POSICAO INICIAL FOR (0,0) ##################
 if posicao_inicial == (0, 0):
+    drive_base.straight(10)
     virarPara('D')
     while color_sensorD.color()!=Color.WHITE:
-        seguir_linha()
+        target=60
+        kp=-0.5
+        erro = color_sensorE.reflection() - target
+        correcao = erro * kp
+        drive_base.drive(250, correcao)
     drive_base.straight(50)
 ############ SE A POSICAO INICIAL FOR (0, 1) ############
 else: 
@@ -409,7 +425,3 @@ else:
     drive_base.straight(50)
 virarPara('B')
 drive_base.straight(80)
-
-##################### PROBLEMAS ##############
-####### FICA PERDIDO POR NAO PASSAR NOS CAMINHOS COM 2 ##########
-####### CRIAR UM CAMINHO OTIMIZADO ##############################
