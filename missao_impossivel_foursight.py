@@ -17,6 +17,9 @@ color_sensorD = ColorSensor(Port.F)
 color_sensorE = ColorSensor(Port.E)
 color_sensorM = ColorSensor(Port.D)
 
+
+cor_linha= Color.WHITE
+
 # ==========================================
 # CONSTANTES DE DIREÇÃO E POSIÇÃO
 # ==========================================
@@ -222,11 +225,11 @@ def calcular_menor_caminho(mapa, inicio, destino):
 # MAIN
 # ==========================================
 ######################## INDO PARA O 0,0 NO INICIO DO JOGO ########################
-while color_sensorE.color()!=Color.WHITE and color_sensorD.color()!=Color.WHITE:
+while color_sensorE.color()!=cor_linha and color_sensorD.color()!=cor_linha:
     seguir_linha()
 drive_base.straight(50)
 virarPara('E')
-while color_sensorE.color()!=Color.WHITE and color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
+while color_sensorE.color()!=cor_linha and color_sensorD.color()!=cor_linha and color_sensorM.color()!=Color.RED:
     seguir_linha()
 
 ################## CASO TENHA UM VERMELHO ENTRE A ENTRADA E O 0,0 ############################
@@ -235,7 +238,7 @@ if color_sensorM.color()== Color.RED:
     posicao_atual= (0,1)
     posicao_inicial= (0,1)
     virarPara('D')
-    while color_sensorE.color()!=Color.WHITE:
+    while color_sensorE.color()!=cor_linha:
         seguir_linha()
     drive_base.straight(50)
     virarPara('C')
@@ -262,7 +265,7 @@ while len(pilha) > 0:
         else:
             virarPara('D')
         drive_base.reset()
-        while color_sensorD.color()!=Color.WHITE and color_sensorE.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
+        while color_sensorD.color()!=cor_linha and color_sensorE.color()!=cor_linha and color_sensorM.color()!=Color.RED:
             seguir_linha()
         drive_base.stop()
         ############# CASO ENCONTRE UM VERMELHO MUDA O DESTINO PARA O OUTRO LADO
@@ -280,7 +283,7 @@ while len(pilha) > 0:
             virarPara('C')
             drive_base.straight(200)
             virarPara('B')
-            while color_sensorE.color()!=Color.WHITE and color_sensorD.color()!=Color.WHITE:
+            while color_sensorE.color()!=cor_linha and color_sensorD.color()!=cor_linha:
                 seguir_linha()
             drive_base.straight(50)
             break
@@ -306,11 +309,11 @@ while len(pilha) > 0:
                 while color_sensorE.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
                     seguir_linha()
             else:  
-                while color_sensorE.color()!=Color.WHITE and color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
+                while color_sensorE.color()!=cor_linha and color_sensorD.color()!=cor_linha and color_sensorM.color()!=Color.RED:
                     seguir_linha()
             drive_base.stop()
             
-            ########## SE ENCONTROU VERMELHO VOLTA PARA O CRUZAMENTO
+            ########## SE ENCONTROU VERMELHO VOLTA PARA O CRUZAMENTO#######
             if color_sensorM.color()==Color.RED:
                 drive_base.straight(-drive_base.distance())
                 ####### MARCA A IDA E A VOLTA COMO -1
@@ -325,7 +328,7 @@ while len(pilha) > 0:
                 mapa[posicao_atual][direcao] = -1
                 mapa[no_destino][direcao_oposta] = -1
 
-            ########## SE CHEGOU AO CRUZAMENTO
+            ########## SE CHEGOU AO CRUZAMENTO ###########
             else:
                 drive_base.straight(50)
                 ######### MARCA A IDA E VOLTA COMO SEGURO
@@ -344,7 +347,7 @@ while len(pilha) > 0:
                 avancou = True
                 break
             
-    ############# CASO ESTEJA EM UM BECO SEM SAIDA
+    ############# CASO ESTEJA EM UM BECO SEM SAIDA ###############
     ############# EU ACHO QUE MARCANDO O CAMINHO DE VOLTA COMO -1 PODEMOS VISITAR NOVAMENTE OS CAMINHOS SEGUROS SEM CAIR EM UM LOOP 
     if not avancou:
         no_descartado = pilha.pop()        
@@ -353,17 +356,17 @@ while len(pilha) > 0:
             no_destino = pilha[-1]
             virar_para_no(posicao_atual, no_destino)
             if (direcao=='D' and posicao_atual[0]==4) or (direcao=='E' and posicao_atual[0]==0):
-                while color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
+                while color_sensorD.color()!=cor_linha and color_sensorM.color()!=Color.RED:
                     seguir_linha()
             elif (direcao=='D' and posicao_atual[0]==0) or (direcao=='E' and posicao_atual[0]==4):
-                while color_sensorE.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
+                while color_sensorE.color()!=cor_linha and color_sensorM.color()!=Color.RED:
                     seguir_linha()
             else:  
-                while color_sensorE.color()!=Color.WHITE and color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
+                while color_sensorE.color()!=cor_linha and color_sensorD.color()!=cor_linha and color_sensorM.color()!=Color.RED:
                     seguir_linha()
             drive_base.straight(50)
             posicao_atual=no_destino
-            ####### MARCA A IDA E A VOLTA COMO -1
+            ####### MARCA A IDA E A VOLTA COMO -1 ##########
             if direcao =='C': 
                 direcao_oposta = 'B'
             elif direcao=='B':
@@ -381,7 +384,7 @@ if pilha[-1]==(4,2):
     virarPara('D')
 else:
     virarPara('E')
-while color_sensorD.color()!=Color.WHITE and color_sensorE.color()!=Color.WHITE:
+while color_sensorD.color()!=cor_linha and color_sensorE.color()!=cor_linha:
     seguir_linha2()
 drive_base.straight(50)
 
@@ -394,13 +397,13 @@ print(posicao_atual)
 for no_destino in caminho_volta:  
     virar_para_no(posicao_atual, no_destino)
     if (direcao=='D' and posicao_atual[0]==4) or (direcao=='E' and posicao_atual[0]==0):
-        while color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
+        while color_sensorD.color()!=cor_linha and color_sensorM.color()!=Color.RED:
             seguir_linha2()
     elif (direcao=='D' and posicao_atual[0]==0) or (direcao=='E' and posicao_atual[0]==4):
-        while color_sensorE.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
+        while color_sensorE.color()!=cor_linha and color_sensorM.color()!=Color.RED:
             seguir_linha2()
     else:  
-        while color_sensorE.color()!=Color.WHITE and color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
+        while color_sensorE.color()!=cor_linha and color_sensorD.color()!=cor_linha and color_sensorM.color()!=Color.RED:
             seguir_linha2()
     drive_base.straight(50)
     posicao_atual=no_destino
@@ -410,7 +413,7 @@ for no_destino in caminho_volta:
 if posicao_inicial == (0, 0):
     drive_base.straight(10)
     virarPara('D')
-    while color_sensorD.color()!=Color.WHITE:
+    while color_sensorD.color()!=cor_linha:
         target=60
         kp=-0.5
         erro = color_sensorE.reflection() - target
@@ -420,7 +423,7 @@ if posicao_inicial == (0, 0):
 ############ SE A POSICAO INICIAL FOR (0, 1) ############
 else: 
     virarPara('E')
-    while color_sensorE.color()!=Color.WHITE:
+    while color_sensorE.color()!=cor_linha:
         seguir_linha()
     drive_base.straight(50)
 virarPara('B')
