@@ -10,15 +10,25 @@ from pybricks.tools import wait, StopWatch
 hub = PrimeHub(top_side=Axis.Z, front_side=Axis.X)
 motorE = Motor(Port.A, Direction.COUNTERCLOCKWISE)
 motorD = Motor(Port.B, Direction.CLOCKWISE)
-drive_base = DriveBase(motorE, motorD, 68.8, 133)
+#drive_base = DriveBase(motorE, motorD, 68.8, 133)
+
+drive_base = DriveBase(motorE, motorD, 88, 109)
 drive_base.settings(straight_speed=300, turn_rate=100)
 drive_base.use_gyro(True)
 color_sensorD = ColorSensor(Port.F)
 color_sensorE = ColorSensor(Port.E)
 color_sensorM = ColorSensor(Port.D)
 
-
 cor_linha= Color.WHITE
+tamanho_ajuste = 38
+if(cor_linha == Color.WHITE):
+    alvo = 70
+    kp1=1.1
+    kp2=-1.2
+elif(cor_linha == Color.NONE):
+    alvo = 50
+    kp1=-1.1
+    kp2=1.2
 
 # ==========================================
 # CONSTANTES DE DIREÇÃO E POSIÇÃO
@@ -55,16 +65,13 @@ PRIORIDADE = ['C', 'D', 'E', 'B']
 # ==========================================
 ########### SEGUIDOR DE LINHA ###########
 def seguir_linha():
-    alvo=90
-    kp=1.2
     erro = alvo - color_sensorM.reflection()
-    correcao = erro * kp
+    correcao = erro * kp1
     drive_base.drive(250, correcao)
+
 def seguir_linha2():
-    alvo=90
-    kp=1.2
     erro = alvo - color_sensorM.reflection()
-    correcao = erro * kp
+    correcao = erro * kp2
     drive_base.drive(500, correcao) #400
 
 ########### IMPRIME MAPA ###########
@@ -219,33 +226,31 @@ def calcular_menor_caminho(mapa, inicio, destino):
     print(f"Erro: Não há rota segura entre {inicio} e {destino}")
     return None
 
-
-
 # ==========================================
 # MAIN
 # ==========================================
 ######################## INDO PARA O 0,0 NO INICIO DO JOGO ########################
 while color_sensorE.color()!=cor_linha and color_sensorD.color()!=cor_linha:
     seguir_linha()
-drive_base.straight(50)
+drive_base.straight(40)
 virarPara('E')
 while color_sensorE.color()!=cor_linha and color_sensorD.color()!=cor_linha and color_sensorM.color()!=Color.RED:
     seguir_linha()
 
 ################## CASO TENHA UM VERMELHO ENTRE A ENTRADA E O 0,0 ############################
 if color_sensorM.color()== Color.RED:
-    drive_base.straight(-50)
+    drive_base.straight(-tamanho_ajuste)
     posicao_atual= (0,1)
     posicao_inicial= (0,1)
     virarPara('D')
     while color_sensorE.color()!=cor_linha:
         seguir_linha()
-    drive_base.straight(50)
+    drive_base.straight(tamanho_ajuste)
     virarPara('C')
 
 ################## CASO NÃO TENHA UM VERMELHO ENTRE A ENTRADA E O 0,0 ############################
 else:
-    drive_base.straight(50)
+    drive_base.straight(tamanho_ajuste)
     virarPara('C')
     posicao_atual = (0, 0) # Ponto de partida
     posicao_inicial= (0, 0)
@@ -279,13 +284,13 @@ while len(pilha) > 0:
                 destino41 = (4,2)  
         ############# DO CONTRARIO FAZ A MANOBRA NO FINAL PARA COMECA O SPEEDRUN E ENCERRA A PROCURA                  
         else:
-            drive_base.straight(50)
+            drive_base.straight(tamanho_ajuste)
             virarPara('C')
-            drive_base.straight(200)
+            drive_base.straight(100)
             virarPara('B')
             while color_sensorE.color()!=cor_linha and color_sensorD.color()!=cor_linha:
                 seguir_linha()
-            drive_base.straight(50)
+            drive_base.straight(tamanho_ajuste)
             break
     
     avancou = False
@@ -303,10 +308,10 @@ while len(pilha) > 0:
             drive_base.reset()
             ###### ANDA ATÉ O CRUZAMENTO OU ATÉ VER UM VERMELHO
             if (direcao=='D' and posicao_atual[0]==4) or (direcao=='E' and posicao_atual[0]==0):
-                while color_sensorD.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
+                while color_sensorD.color()!=cor_linha and color_sensorM.color()!=Color.RED:
                     seguir_linha()
             elif (direcao=='D' and posicao_atual[0]==0) or (direcao=='E' and posicao_atual[0]==4):
-                while color_sensorE.color()!=Color.WHITE and color_sensorM.color()!=Color.RED:
+                while color_sensorE.color()!=cor_linha and color_sensorM.color()!=Color.RED:
                     seguir_linha()
             else:  
                 while color_sensorE.color()!=cor_linha and color_sensorD.color()!=cor_linha and color_sensorM.color()!=Color.RED:
@@ -330,7 +335,7 @@ while len(pilha) > 0:
 
             ########## SE CHEGOU AO CRUZAMENTO ###########
             else:
-                drive_base.straight(50)
+                drive_base.straight(tamanho_ajuste)
                 ######### MARCA A IDA E VOLTA COMO SEGURO
                 if direcao =='C': 
                     direcao_oposta = 'B'
@@ -354,6 +359,7 @@ while len(pilha) > 0:
         if len(pilha) > 0:
             print(pilha)
             no_destino = pilha[-1]
+            drive_base.straight(5) #### RODA GRANDE #####
             virar_para_no(posicao_atual, no_destino)
             if (direcao=='D' and posicao_atual[0]==4) or (direcao=='E' and posicao_atual[0]==0):
                 while color_sensorD.color()!=cor_linha and color_sensorM.color()!=Color.RED:
@@ -364,7 +370,8 @@ while len(pilha) > 0:
             else:  
                 while color_sensorE.color()!=cor_linha and color_sensorD.color()!=cor_linha and color_sensorM.color()!=Color.RED:
                     seguir_linha()
-            drive_base.straight(50)
+            drive_base.straight(tamanho_ajuste)
+
             posicao_atual=no_destino
             ####### MARCA A IDA E A VOLTA COMO -1 ##########
             if direcao =='C': 
@@ -382,16 +389,17 @@ while len(pilha) > 0:
 ########## VAI ATÉ O DESTINO USADO PARA ACESSAR A SAIDA #################
 if pilha[-1]==(4,2):
     virarPara('D')
+    while color_sensorD.color()!=cor_linha:
+        seguir_linha2()
 else:
     virarPara('E')
-while color_sensorD.color()!=cor_linha and color_sensorE.color()!=cor_linha:
-    seguir_linha2()
-drive_base.straight(50)
+    while color_sensorE.color()!=cor_linha:
+        seguir_linha2()
+
+drive_base.straight(tamanho_ajuste)
 
 ########## ENCONTRAR O MELHOR CAMINHO DE VOLTA #################
 caminho_volta = calcular_menor_caminho(mapa, pilha[-2], posicao_inicial)
-print(caminho_volta)
-print(posicao_atual)
 
 ########## SEGUE O CAMINHO ENCONTRADO ###################
 for no_destino in caminho_volta:  
@@ -405,7 +413,7 @@ for no_destino in caminho_volta:
     else:  
         while color_sensorE.color()!=cor_linha and color_sensorD.color()!=cor_linha and color_sensorM.color()!=Color.RED:
             seguir_linha2()
-    drive_base.straight(50)
+    drive_base.straight(tamanho_ajuste)
     posicao_atual=no_destino
 
 ############ CHEGAMOS NO 0,0  NA VOLTA #########################
@@ -414,17 +422,13 @@ if posicao_inicial == (0, 0):
     drive_base.straight(10)
     virarPara('D')
     while color_sensorD.color()!=cor_linha:
-        target=60
-        kp=-0.5
-        erro = color_sensorE.reflection() - target
-        correcao = erro * kp
-        drive_base.drive(250, correcao)
-    drive_base.straight(50)
+        drive_base.drive(500, 0) #400
+    drive_base.straight(tamanho_ajuste)
 ############ SE A POSICAO INICIAL FOR (0, 1) ############
 else: 
     virarPara('E')
     while color_sensorE.color()!=cor_linha:
-        seguir_linha()
-    drive_base.straight(50)
+        drive_base.drive(500, 0) #400
+    drive_base.straight(tamanho_ajuste)
 virarPara('B')
 drive_base.straight(80)
